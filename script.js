@@ -9,10 +9,6 @@ function initMap() {
         zoom: 16,
         minZoom: 15,
         maxZoom: 18,
-        restriction: {
-            latLngBounds: { north: 25.146, south: 25.141, east: 121.504, west: 121.5 },
-            strictBounds: false
-        },
         gestureHandling: 'greedy'
     });
 
