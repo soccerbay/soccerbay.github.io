@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>手機座標回報平台</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+        }
+        #map {
+            width: 100vw;
+            height: 80vh; /* 調整地圖高度 */
+        }
+        #controls {
+            padding: 10px;
+        }
+        #controls input[type="text"] {
+            padding: 5px;
+        }
+        #controls button {
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="font-weight: bold;">手機座標回報平台</h1>
+    <div id="controls">
+        <input type="checkbox" id="showMarkers"> 顯示回報點位
+        <input type="text" id="name" placeholder="請輸入姓名">
+        <button id="report">回報我的位置</button>
+    </div>
+    <div id="map"></div>
+    <script src="script.js"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6rarU_BwnVh-XmHNZGw0KBZ9TaRS_BZg&callback=initMap"></script>
+</body>
+</html>
