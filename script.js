@@ -48,7 +48,7 @@ function createGrid(south, west, north, east, gridSize) {
             const rectangle = new google.maps.Rectangle({
                 strokeColor: '#000000',
                 strokeOpacity: 0.8,
-                strokeWeight: 1,
+                strokeWeight: 2,
                 fillColor: '#FFFFFF',
                 fillOpacity: 0.1,
                 map: map,
