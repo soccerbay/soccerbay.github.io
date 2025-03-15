@@ -8,7 +8,7 @@ function initMap() {
         center: { lat: 25.1435, lng: 121.502 },
         zoom: 16,
         minZoom: 15,
-        maxZoom: 18,
+        maxZoom: 21,
         gestureHandling: 'greedy',
         mapTypeControl: true, // 啟用地圖類型控制項
         mapTypeControlOptions: {
