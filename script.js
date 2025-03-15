@@ -6,13 +6,13 @@ let gridData = {}; // 儲存每個方格的座標點
 function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: 25.1435, lng: 121.502 },
-        zoom: 17,
+        zoom: 18,
         minZoom: 15,
         maxZoom: 20,
         gestureHandling: 'auto',
         mapTypeControl: true, // 啟用地圖類型控制項
         mapTypeControlOptions: {
-            ControlPosition.BOTTOM_LEFT // 設定位置為左下角
+            ControlPosition.TOP_RIGHT // 設定位置為左下角
         }
     });
 
