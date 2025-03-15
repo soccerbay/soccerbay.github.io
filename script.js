@@ -6,7 +6,7 @@ let gridData = {}; // 儲存每個方格的座標點
 function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: 25.1435, lng: 121.502 },
-        zoom: 16,
+        zoom: 17,
         minZoom: 15,
         maxZoom: 21,
         gestureHandling: 'greedy',
