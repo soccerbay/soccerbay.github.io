@@ -9,7 +9,11 @@ function initMap() {
         zoom: 16,
         minZoom: 15,
         maxZoom: 18,
-        gestureHandling: 'greedy'
+        gestureHandling: 'greedy',
+        mapTypeControl: true, // 啟用地圖類型控制項
+        mapTypeControlOptions: {
+            position: google.maps.ControlPosition.BOTTOM_LEFT // 設定位置為左下角
+        }
     });
 
     // 建立方格網
