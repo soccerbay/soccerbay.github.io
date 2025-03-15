@@ -9,7 +9,6 @@ function initMap() {
         zoom: 16,
         minZoom: 15,
         maxZoom: 20,
-        mapTypeControlOptions: BLOCK_END_INLINE_START,
         gestureHandling: 'greedy'
     });
 
