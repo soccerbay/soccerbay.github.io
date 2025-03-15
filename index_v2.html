@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>手機座標回報平台</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+            overflow: hidden; /* 隱藏捲軸 */
+        }
+        #map {
+            width: 100vw;
+            height: 100vh; /* 地圖佔據整個螢幕 */
+        }
+        #controls {
+            position: absolute; /* 懸浮於地圖上 */
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.8); /* 半透明背景 */
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #controls input[type="text"] {
+            padding: 5px;
+        }
+        #controls button {
+            padding: 5px 10px;
+        }
+        #title {
+            position: absolute; /* 懸浮於地圖上 */
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%); /* 水平置中 */
+            font-weight: bold;
+            color: black;
+            background-color: rgba(255, 255, 255, 0.8); /* 半透明背景 */
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="title">手機座標回報平台</div>
+    <div id="controls">
+        <input type="checkbox" id="showMarkers"> 顯示回報點位
+        <input type="text" id="name" placeholder="請輸入姓名">
+        <button id="report">回報我的位置</button>
+    </div>
+    <script src="script.js"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6rarU_BwnVh-XmHNZGw0KBZ9TaRS_BZg&callback=initMap"></script>
+</body>
+</html>

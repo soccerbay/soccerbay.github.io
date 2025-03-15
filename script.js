@@ -13,7 +13,7 @@ function initMap() {
             latLngBounds: { north: 25.146, south: 25.141, east: 121.504, west: 121.5 },
             strictBounds: false
         },
-        gestureHandling: 'greedy'
+        gestureHandling: 'cooperative'
     });
 
     // 建立方格網
