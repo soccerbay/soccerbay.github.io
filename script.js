@@ -12,7 +12,7 @@ function initMap() {
         gestureHandling: 'auto',
         mapTypeControl: true, // 啟用地圖類型控制項
         mapTypeControlOptions: {
-            ControlPosition.TOP_RIGHT // 設定位置為左下角
+            ControlPosition.BLOCK_START_INLINE_END // 設定位置為右上角
         }
     });
 
