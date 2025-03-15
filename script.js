@@ -11,9 +11,8 @@ function initMap() {
         maxZoom: 20,
         gestureHandling: 'auto',
         mapTypeControl: true, // 啟用地圖類型控制項
-        mapTypeControlOptions: {
-            ControlPosition.BLOCK_START_INLINE_END // 設定位置為右上角
-        },
+        mapTypeControlOptions: { ControlPosition.BLOCK_START_INLINE_END }
+        // 設定位置為右上角
     });
 
     // 建立方格網
