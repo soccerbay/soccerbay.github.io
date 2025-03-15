@@ -10,9 +10,7 @@ function initMap() {
         minZoom: 15,
         maxZoom: 21,
         gestureHandling: 'greedy',
-        mapTypeControlOptions: {
-            ControlPosition.BLOCK_END_INLINE_START // 設定位置為左下角
-        }
+        
     });
 
     // 建立方格網
