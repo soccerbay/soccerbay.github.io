@@ -8,9 +8,12 @@ function initMap() {
         center: { lat: 25.1435, lng: 121.502 },
         zoom: 17,
         minZoom: 15,
-        maxZoom: 21,
-        gestureHandling: 'greedy',
-        
+        maxZoom: 20,
+        gestureHandling: 'auto',
+        mapTypeControl: true, // 啟用地圖類型控制項
+        mapTypeControlOptions: {
+            position: google.maps.ControlPosition.BOTTOM_LEFT // 設定位置為左下角
+        }
     });
 
     // 建立方格網
