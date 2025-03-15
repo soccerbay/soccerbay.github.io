@@ -12,7 +12,7 @@ function initMap() {
         gestureHandling: 'greedy',
         mapTypeControl: true, // 啟用地圖類型控制項
         mapTypeControlOptions: {
-            position: google.maps.ControlPosition.BOTTOM_LEFT // 設定位置為左下角
+            ControlPosition.BOTTOM_LEFT // 設定位置為左下角
         }
     });
 
