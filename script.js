@@ -10,7 +10,6 @@ function initMap() {
         minZoom: 15,
         maxZoom: 21,
         gestureHandling: 'greedy',
-        mapTypeControl: true, // 啟用地圖類型控制項
         mapTypeControlOptions: {
             ControlPosition.BLOCK_END_INLINE_START // 設定位置為左下角
         }
