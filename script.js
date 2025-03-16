@@ -6,13 +6,14 @@ let gridData = {}; // 儲存每個方格的座標點
 function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: 25.1435, lng: 121.502 },
-        zoom: 18,
+        zoom: 17,
         minZoom: 15,
-        maxZoom: 20,
-        gestureHandling: 'auto',
+        maxZoom: 21,
+        gestureHandling: 'cooperative',
         mapTypeControl: true, // 啟用地圖類型控制項
-        mapTypeControlOptions: { ControlPosition.BLOCK_START_INLINE_END }
-        // 設定位置為右上角
+        mapTypeControlOptions: {
+            position: google.maps.ControlPosition.TOP_RIGHT // 設定位置為左下角
+        }
     });
 
     // 建立方格網
@@ -51,7 +52,7 @@ function createGrid(south, west, north, east, gridSize) {
             const rectangle = new google.maps.Rectangle({
                 strokeColor: '#000000',
                 strokeOpacity: 0.8,
-                strokeWeight: 2,
+                strokeWeight: 1,
                 fillColor: '#FFFFFF',
                 fillOpacity: 0.1,
                 map: map,
