@@ -6,7 +6,7 @@ let gridData = {}; // 儲存每個方格的座標點
 function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: 25.1435, lng: 121.502 },
-        zoom: 17,
+        zoom: 18,
         minZoom: 15,
         maxZoom: 21,
         gestureHandling: 'cooperative',
@@ -51,10 +51,10 @@ function createGrid(south, west, north, east, gridSize) {
             };
             const rectangle = new google.maps.Rectangle({
                 strokeColor: '#000000',
-                strokeOpacity: 0.8,
-                strokeWeight: 1,
+                strokeOpacity: 1,
+                strokeWeight: 2,
                 fillColor: '#FFFFFF',
-                fillOpacity: 0.5,
+                fillOpacity: 1,
                 map: map,
                 bounds: bounds
             });
