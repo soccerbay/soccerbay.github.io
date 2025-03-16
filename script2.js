@@ -6,13 +6,13 @@ let gridData = {}; // 儲存每個方格的座標點
 function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: 25.1435, lng: 121.502 },
-        zoom: 18,
+        zoom: 17,
         minZoom: 15,
         maxZoom: 21,
         gestureHandling: 'cooperative',
-        mapTypeControl: true, // 啟用地圖類型控制項
+        mapTypeControl: true,
         mapTypeControlOptions: {
-            position: google.maps.ControlPosition.TOP_RIGHT // 設定位置為右上角
+            position: google.maps.ControlPosition.TOP_RIGHT
         }
     });
 
@@ -52,9 +52,9 @@ function createGrid(south, west, north, east, gridSize) {
             const rectangle = new google.maps.Rectangle({
                 strokeColor: '#000000',
                 strokeOpacity: 0.8,
-                strokeWeight: 2,
+                strokeWeight: 1,
                 fillColor: '#FFFFFF',
-                fillOpacity: 0.1,
+                fillOpacity: 0.5,
                 map: map,
                 bounds: bounds
             });
@@ -62,7 +62,7 @@ function createGrid(south, west, north, east, gridSize) {
 
             // 儲存方格資料
             const gridKey = `${bounds.south.toFixed(6)},${bounds.west.toFixed(6)}`;
-            gridData[gridKey] = { bounds: bounds, markers: [] };
+            gridData[gridKey] = { bounds: bounds, markers: [], count: 0 };
 
             // 方格點擊事件
             rectangle.addListener('click', () => {
@@ -75,23 +75,22 @@ function createGrid(south, west, north, east, gridSize) {
 function reportLocation() {
     const name = document.getElementById('name').value;
     if (!name) {
-        alert('未輸入姓名');
+        alert('未選擇姓名');
         return;
     }
 
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(position => {
             const { latitude, longitude } = position.coords;
-            const timestamp = new Date().toISOString();
-            const utc8Timestamp = new Date(timestamp.getTime() + 8 * 60 * 60 * 1000).toISOString(); // UTC+8 時間
+            const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }); // 設定時區為台灣標準時間
 
             // 將資料傳送到 Google Sheets
-            sendData(utc8Timestamp, latitude, longitude, name);
+            sendData(timestamp, latitude, longitude, name);
 
             // 在地圖上顯示標記
-            addMarker(latitude, longitude, name, utc8Timestamp);
+            addMarker(latitude, longitude, name, timestamp); // 傳遞時間戳記
 
-            alert('回報位置成功');
+            alert('回報位置成功'); // 顯示成功訊息
         }, () => {
             alert('無法取得您的位置');
         });
@@ -100,7 +99,7 @@ function reportLocation() {
     }
 }
 
-function sendData(utc8Timestamp, latitude, longitude, name) {
+function sendData(timestamp, latitude, longitude, name) {
     const sheetId = '11dNLFa2eKrfCXZfUI8COJ_1Ydywm-TC1ebM3CBJTIWA'; // 替換成你的試算表 ID
     const url = `https://script.google.com/macros/s/AKfycbzYMxyuD10axWKCrNIaENahA6BH0mK85oAt1kyPRK3M9ZG5fbvN3vMqeyT9zb5jDncw8g/exec?timestamp=${timestamp}&latitude=${latitude}&longitude=${longitude}&name=${name}`; // 替換成你的 Web App URL
 
@@ -122,13 +121,13 @@ function fetchData() {
         .then(data => {
             if (data && data.length > 0) {
                 data.forEach(item => {
-                    addMarker(parseFloat(item.latitude), parseFloat(item.longitude), item.name);
+                    addMarker(parseFloat(item.latitude), parseFloat(item.longitude), item.name, item.timestamp); // 傳遞時間戳記
                 });
             }
         });
 }
 
-function addMarker(latitude, longitude, name, utc8Timestamp) {
+function addMarker(latitude, longitude, name, timestamp) {
     const marker = new google.maps.Marker({
         position: { lat: latitude, lng: longitude },
         map: document.getElementById('showMarkers').checked ? map : null,
@@ -137,30 +136,24 @@ function addMarker(latitude, longitude, name, utc8Timestamp) {
     markers.push(marker);
 
     // 將標記加入對應的方格
-    addToGrid(marker, latitude, longitude, utc8Timestamp);
+    addToGrid(marker, latitude, longitude, timestamp); // 傳遞時間戳記
 
-    // 標記點擊事件
+    // 點擊標記顯示回報者姓名和時間
     marker.addListener('click', () => {
-        showMarkerInfo(name, utc8Timestamp);
+        alert(`回報者：${name}\n時間：${timestamp}`);
     });
 }
 
-function addToGrid(marker, latitude, longitude, utc8Timestamp) {
+function addToGrid(marker, latitude, longitude, timestamp) {
     for (const key in gridData) {
         const bounds = gridData[key].bounds;
         if (latitude >= bounds.south && latitude <= bounds.north && longitude >= bounds.west && longitude <= bounds.east) {
             gridData[key].markers.push(marker);
+            gridData[key].count++; // 增加回報數
+            const fillColor = `rgb(${Math.min(255, 20 + gridData[key].count * 10)}, 255, 255)`; // 計算 fillColor
+            gridSquares.find(rect => rect.getBounds().equals(gridData[key].bounds)).setOptions({ fillColor: fillColor }); // 更新方格顏色
             break;
         }
-    }
-}
-
-function updateGridColor(gridKey) { // 新增此行
-    const grid = gridData[gridKey];
-    if (grid) {
-        const markerCount = grid.markers.length;
-        const fillColor = `rgb(${Math.min(255, markerCount * 10)}, 255, 255)`; // R 值遞增
-        gridSquares.find(square => square.bounds === grid.bounds).setOptions({ fillColor: fillColor });
     }
 }
 
@@ -169,10 +162,6 @@ function showGridMarkers(gridKey) {
     if (grid) {
         alert(`此方格共有 ${grid.markers.length} 個座標點`);
     }
-}
-
-function showMarkerInfo(name, utc8Timestamp) { // 新增此行
-    alert(`回報者：${name}\n時間：${utc8Timestamp}`);
 }
 
 function toggleMarkers() {
