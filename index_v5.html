@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>手機座標回報平台</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+        #map {
+            width: 100vw;
+            height: 100vh;
+        }
+        #control-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #title {
+            font-size: 30px; /* 調整標題字體大小 */
+            font-weight: bold;
+            color: black;
+            margin-bottom: 10px;
+        }
+        #name {
+            padding: 5px;
+            width: 150px; /* 調整文字輸入欄位寬度 */
+            height: 25px; /* 調整文字輸入欄位高度 */
+        }
+        #report {
+            padding: 8px 15px; /* 調整按鈕大小 */
+        }
+        #showMarkers {
+            transform: scale(1.2); /* 調整核取方塊大小 */
+        }
+        .marker-label {
+            font-size: 20px; /* 調整「顯示回報點位」字體大小 */
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="control-panel">
+        <div id="title">手機座標回報平台</div>
+        <input type="text" id="name" placeholder="請輸入姓名">
+        <button id="report">回報我的位置</button><br><br>
+        <input type="checkbox" id="showMarkers">
+        <span class="marker-label">顯示回報點位</span>
+    </div>
+    <script src="script.js"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6rarU_BwnVh-XmHNZGw0KBZ9TaRS_BZg&callback=initMap"></script>
+</body>
+</html>
