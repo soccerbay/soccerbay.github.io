@@ -54,7 +54,7 @@ function createGrid(south, west, north, east, gridSize) {
                 strokeOpacity: 1,
                 strokeWeight: 2,
                 fillColor: '#FFFFFF',
-                fillOpacity: 1,
+                fillOpacity: 0,
                 map: map,
                 bounds: bounds
             });
