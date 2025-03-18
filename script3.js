@@ -19,7 +19,7 @@ function initMap() {
 
     // 建立方格網
     const gridAreas = [
-        { south: 25.029, west: 121.511, north: 25.144, east: 121.544 },
+        { south: 25.029, west: 121.497, north: 25.144, east: 121.544 },
         { south: 24.769, west: 120.944, north: 24.823, east: 121.034 },
         { south: 24.095, west: 120.649, north: 24.156, east: 120.686 }
     ];
@@ -70,7 +70,7 @@ function createGrid(south, west, north, east, gridSize) {
                 strokeColor: '#000000',
                 strokeOpacity: 1,
                 strokeWeight: 1.5,
-                fillColor: '#FFFFFF',
+                fillColor: '#FF0000',
                 fillOpacity: 0,
                 map: map,
                 bounds: bounds
@@ -188,8 +188,8 @@ function addToGrid(marker, latitude, longitude, timestamp) {
             gridData[key].markers.push(marker);
             gridData[key].count++; // 增加回報數
             // 計算 fillColor，透明度隨 count 增加而增加，最大為 0.5
-            const opacity = Math.min(0.5, gridData[key].count * 0.05);
-            const fillColor = `rgb(${Math.min(255, 20 + gridData[key].count * 10)}, 255, 255)`; // 計算 fillColor
+            const opacity = Math.min(0, gridData[key].count * 0.05);
+            const fillColor = `rgb(${Math.min(255, 20 + gridData[key].count * 10)}, 0, 0)`; // 計算 fillColor
             gridSquares.find(rect => rect.getBounds().equals(gridData[key].bounds)).setOptions({ fillColor: fillColor }); // 更新方格顏色
             break;
         }
