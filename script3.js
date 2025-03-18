@@ -69,7 +69,7 @@ function createGrid(south, west, north, east, gridSize) {
             const rectangle = new google.maps.Rectangle({
                 strokeColor: '#000000',
                 strokeOpacity: 1,
-                strokeWeight: 2,
+                strokeWeight: 1.5,
                 fillColor: '#FFFFFF',
                 fillOpacity: 0,
                 map: map,
@@ -85,6 +85,9 @@ function createGrid(south, west, north, east, gridSize) {
             rectangle.addListener('click', () => {
                 showGridMarkers(gridKey);
             });
+
+            // 將 fillOpacity 屬性設定為 0
+            rectangle.setOptions({ fillOpacity: 0 });
         }
     }
 }
@@ -177,12 +180,15 @@ function addMarker(latitude, longitude, name, timestamp) {
     });
 }
 
+// 修改 addToGrid 函數，使方格填入顏色的透明度隨回報點增加
 function addToGrid(marker, latitude, longitude, timestamp) {
     for (const key in gridData) {
         const bounds = gridData[key].bounds;
         if (latitude >= bounds.south && latitude <= bounds.north && longitude >= bounds.west && longitude <= bounds.east) {
             gridData[key].markers.push(marker);
             gridData[key].count++; // 增加回報數
+            // 計算 fillColor，透明度隨 count 增加而增加，最大為 0.5
+            const opacity = Math.min(0.5, gridData[key].count * 0.05);
             const fillColor = `rgb(${Math.min(255, 20 + gridData[key].count * 10)}, 255, 255)`; // 計算 fillColor
             gridSquares.find(rect => rect.getBounds().equals(gridData[key].bounds)).setOptions({ fillColor: fillColor }); // 更新方格顏色
             break;
