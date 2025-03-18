@@ -19,7 +19,7 @@ function initMap() {
 
     // 建立方格網
     const gridAreas = [
-        { south: 25.029, west: 121.497, north: 25.144, east: 121.544 },
+        { south: 25.029, west: 121.497, north: 25.147, east: 121.544 },
         { south: 24.769, west: 120.944, north: 24.823, east: 121.034 },
         { south: 24.095, west: 120.649, north: 24.156, east: 120.686 }
     ];
