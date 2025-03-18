@@ -152,7 +152,7 @@ function addMarker(latitude, longitude, name, timestamp) {
         // 如果沒有，則建立一個新的圖標
         const icon = {
             path: google.maps.SymbolPath.CIRCLE,
-            scale: 20,
+            scale: 10,
             fillColor: '#' + Math.floor(Math.random() * 16777215).toString(16), // 隨機顏色
             fillOpacity: 0.8,
             strokeWeight: 0.5
