@@ -6,10 +6,10 @@ let userIcons = {}; // 儲存使用者對應的圖標
 
 function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: 24.5, lng: 121 }, // 調整地圖中心點
-        zoom: 8, // 調整地圖縮放層級
+        center: { lat: 24.57, lng: 121.1 }, // 調整地圖中心點
+        zoom: 9, // 調整地圖縮放層級
         minZoom: 8,
-        maxZoom: 18,
+        maxZoom: 21,
         gestureHandling: 'cooperative',
         mapTypeControl: true,
         mapTypeControlOptions: {
