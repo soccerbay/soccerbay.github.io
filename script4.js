@@ -30,6 +30,9 @@ function initMap() {
     // 取得 Google Sheets 資料
     fetchData(); // 確保 fetchData() 被呼叫
 
+    // 每 5 秒自動執行 fetchData()
+    setInterval(fetchData, 3000);
+
     // 回報位置按鈕事件
     document.getElementById('report').addEventListener('click', reportLocation);
 
