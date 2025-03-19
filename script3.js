@@ -187,10 +187,10 @@ function addToGrid(marker, latitude, longitude, timestamp) {
         if (latitude >= bounds.south && latitude <= bounds.north && longitude >= bounds.west && longitude <= bounds.east) {
             gridData[key].markers.push(marker);
             gridData[key].count++; // 增加回報數
-            // 計算 fillColor，透明度隨 count 增加而增加，最大為 0.5
-            const opacity = Math.min(0, gridData[key].count * 0.05);
-            const fillColor = `rgb(255, 0, 0, opacity)`; // 計算 fillColor
-            gridSquares.find(rect => rect.getBounds().equals(gridData[key].bounds)).setOptions({ fillColor: fillColor }); // 更新方格顏色
+            // 計算 fillColor，透明度隨 count 增加而增加，最大為 0.7
+            const opacity = Math.min(0.7, gridData[key].count * 0.05);
+            const fillColor = `rgb(${Math.min(255, 20 + gridData[key].count * 10)}, 0, 0)`; // 計算 fillColor
+            gridSquares.find(rect => rect.getBounds().equals(gridData[key].bounds)).setOptions({ fillColor: fillColor, fillOpacity: opacity }); // 更新方格顏色
             break;
         }
     }
