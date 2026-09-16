@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大圓航線 vs 恆方向線</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .split-section {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .half {
+            flex: 1;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .controls {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+        }
+        .controls input {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .controls button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .btn-draw { background-color: #4CAF50; color: white; }
+        .btn-draw:hover { background-color: #45a049; }
+        .btn-clear { background-color: #f44336; color: white; }
+        .btn-clear:hover { background-color: #da190b; }
+        .map-container {
+            height: 500px;
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            overflow: hidden;
+        }
+        
+        /* 確保最新的 3D 地圖元件能填滿容器 */
+        gmp-map-3d {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>大圓航線 vs 恆方向線</h1>
+
+        <div class="split-section">
+            <div class="half">
+                <h3>大圓航線 (Great Circle Route) 說明</h3>
+                <p><b>大圓航線</b> 指的是在球面上兩點之間所能畫出的最短距離路徑<br>
+                <b>定義：</b>通過球體中心（球心）的平面與球面相交所形成的圓，<span style="color: #ff0000;">是球面上直徑最大的圓</span><br>
+                <b>例子：</b>所有的經圈以及赤道都是大圓，一般的緯線則是小圓而非大圓<br>
+                <b>球面與平面的差異：</b>在立體的球面上的最短距離，轉繪到平面的地圖上看起來會是彎曲的弧線</p>
+                <p style="color: #DAA520; font-weight: bold;">※ 地圖上將以「金色」線條表示</p>
+            </div>
+            <div class="half">
+                <h3>恆方向線/等方位線 (Rhumb Line) 說明</h3>
+                <p><b>恆方向線</b>指的是與所有經線夾相同角度的連續曲線<br>
+                <b>優點：</b>在麥卡托投影地圖上為簡單的直線，適合只有羅盤的早年海員使用<br>
+                <b>缺點：</b>距離較長，愈長距離的航線會消耗愈多燃料<br>
+                <b>球面與平面的差異：</b>在球面上是一條<span style="color: #ff0000;">朝著兩極盤旋的螺旋線</span>，在麥卡托投影上為簡單的直線</p>
+                <p style="color: #FF0000; font-weight: bold;">※ 地圖上將以「紅色」線條表示</p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <label for="start">起點：</label>
+            <input type="text" id="start" placeholder="例如：台北">
+            
+            <label for="end">終點：</label>
+            <input type="text" id="end" placeholder="例如：洛杉磯">
+            
+            <button class="btn-draw" onclick="drawRoutes()">繪製航線</button>
+            <button class="btn-clear" onclick="clearAll()">清空內容</button>
+        </div>
+
+        <div class="split-section">
+            <div class="half">
+                <h4 style="text-align:center; margin-top:0;">真正的 3D 地球 (Map3DElement + 經緯網格)</h4>
+                <div id="earth-map" class="map-container"></div>
+            </div>
+            <div class="half">
+                <h4 style="text-align:center; margin-top:0;">2D 地圖 (麥卡托投影)</h4>
+                <div id="flat-map" class="map-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let map3D, map2D;
+        let geocoder;
+        let earthLines = [];
+        let flatLines = [];
+
+        // 使用最新的 Async Library Import 方法初始化地圖
+        async function initMap() {
+            // 載入需要的各個模組
+            const { Geocoder } = await google.maps.importLibrary('geocoding');
+            const { Map } = await google.maps.importLibrary('maps');
+            const { Map3DElement, Polyline3DElement } = await google.maps.importLibrary('maps3d');
+
+            geocoder = new Geocoder();
+
+            // --- 1. 建立左側 3D 地球 ---
+            map3D = new Map3DElement({
+                center: { lat: 20, lng: 120, altitude: 0 },
+                range: 20000000, // 攝影機距離(公尺)，設大一點可看到全域
+                tilt: 0,
+                mode: 'ROADMAP'
+            });
+            document.getElementById('earth-map').appendChild(map3D);
+
+            // --- 2. 建立右側 2D 地圖 ---
+            map2D = new Map(document.getElementById('flat-map'), {
+                center: { lat: 20, lng: 160 },
+                zoom: 2,
+                mapTypeId: 'roadmap',
+                streetViewControl: false,
+                mapTypeControl: false
+            });
+
+            // --- 3. 在 3D 地球上繪製經緯網格 ---
+            drawGraticule3D(Polyline3DElement);
+        }
+
+        // 手動在 3D 地球上疊加經緯線網格
+        function drawGraticule3D(Polyline3DClass) {
+            const gridColor = '#ffffff66'; // 白色，帶透明度
+            const gridWidth = 1;
+
+            // 繪製緯線 (Parallels - 非大圓)
+            for (let lat = -80; lat <= 80; lat += 20) {
+                let path = [];
+                for (let lng = -180; lng <= 180; lng += 10) {
+                    path.push({ lat: lat, lng: lng });
+                }
+                const poly = new Polyline3DClass({
+                    path: path,
+                    geodesic: false,
+                    strokeColor: gridColor,
+                    strokeWidth: gridWidth,
+                    altitudeMode: 'RELATIVE_TO_GROUND'
+                });
+                map3D.append(poly);
+            }
+
+            // 繪製經線 (Meridians - 是大圓)
+            for (let lng = -180; lng <= 180; lng += 30) {
+                let path = [];
+                for (let lat = -90; lat <= 90; lat += 10) {
+                    path.push({ lat: lat, lng: lng });
+                }
+                const poly = new Polyline3DClass({
+                    path: path,
+                    geodesic: true,
+                    strokeColor: gridColor,
+                    strokeWidth: gridWidth,
+                    altitudeMode: 'RELATIVE_TO_GROUND'
+                });
+                map3D.append(poly);
+            }
+        }
+
+        async function drawRoutes() {
+            const startStr = document.getElementById('start').value;
+            const endStr = document.getElementById('end').value;
+
+            if (!startStr || !endStr) {
+                alert("請輸入起點與終點名稱！");
+                return;
+            }
+
+            clearRoutes();
+
+            geocoder.geocode({ address: startStr }, (results1, status1) => {
+                if (status1 !== 'OK') return alert("起點解析失敗：" + status1);
+                const startLoc = results1[0].geometry.location;
+
+                geocoder.geocode({ address: endStr }, async (results2, status2) => {
+                    if (status2 !== 'OK') return alert("終點解析失敗：" + status2);
+                    const endLoc = results2[0].geometry.location;
+                    const routePath = [startLoc, endLoc];
+
+                    // --- 繪製右側 2D 地圖線條 ---
+                    const { Polyline } = await google.maps.importLibrary('maps');
+                    const gcFlat = new Polyline({
+                        path: routePath, geodesic: true, strokeColor: '#DAA520', strokeOpacity: 1.0, strokeWeight: 4
+                    });
+                    const rhumbFlat = new Polyline({
+                        path: routePath, geodesic: false, strokeColor: '#FF0000', strokeOpacity: 0.8, strokeWeight: 4
+                    });
+                    gcFlat.setMap(map2D);
+                    rhumbFlat.setMap(map2D);
+                    flatLines.push(gcFlat, rhumbFlat);
+
+                    // --- 繪製左側 3D 地球線條 ---
+                    const { Polyline3DElement } = await google.maps.importLibrary('maps3d');
+                    const path3D = [
+                        { lat: startLoc.lat(), lng: startLoc.lng() },
+                        { lat: endLoc.lat(), lng: endLoc.lng() }
+                    ];
+
+                    const gc3D = new Polyline3DElement({
+                        path: path3D, geodesic: true,
+                        strokeColor: '#DAA520', strokeWidth: 4, // 金色
+                        altitudeMode: 'RELATIVE_TO_GROUND', drawsOccludedSegments: true
+                    });
+                    map3D.append(gc3D);
+                    earthLines.push(gc3D);
+
+                    const rhumb3D = new Polyline3DElement({
+                        path: path3D, geodesic: false,
+                        strokeColor: '#FF0000CC', strokeWidth: 4, // 紅色 (CC為透明度)
+                        altitudeMode: 'RELATIVE_TO_GROUND', drawsOccludedSegments: true
+                    });
+                    map3D.append(rhumb3D);
+                    earthLines.push(rhumb3D);
+
+
+                    // --- 自動調整 2D 檢視範圍 ---
+                    const bounds = new google.maps.LatLngBounds();
+                    bounds.extend(startLoc);
+                    bounds.extend(endLoc);
+                    map2D.fitBounds(bounds);
+
+                    // --- 自動調整 3D 地球視角 (相機推拉) ---
+                    const { spherical } = await google.maps.importLibrary('geometry');
+                    const distance = spherical.computeDistanceBetween(startLoc, endLoc); // 計算距離(公尺)
+                    const midPoint = spherical.interpolate(startLoc, endLoc, 0.5); // 取得中點
+                    
+                    // 將相機移動至航線中點，並根據兩點距離拉遠高度(range)
+                    map3D.center = { lat: midPoint.lat(), lng: midPoint.lng(), altitude: 0 };
+                    map3D.range = Math.max(distance * 1.5, 3000000); 
+                });
+            });
+        }
+
+        // 僅清除航線
+        function clearRoutes() {
+            // 清除 2D (使用 setMap(null))
+            flatLines.forEach(line => line.setMap(null));
+            flatLines = [];
+            
+            // 清除 3D (3D 物件為 DOM 節點，直接呼叫 .remove() 移除)
+            earthLines.forEach(line => line.remove());
+            earthLines = [];
+        }
+
+        function clearAll() {
+            document.getElementById('start').value = '';
+            document.getElementById('end').value = '';
+            clearRoutes();
+            
+            // 重置 2D 視角
+            map2D.setCenter({ lat: 20, lng: 160 });
+            map2D.setZoom(2);
+            
+            // 重置 3D 視角
+            map3D.center = { lat: 20, lng: 120, altitude: 0 };
+            map3D.range = 20000000;
+        }
+    </script>
+    
+    <!-- 注意！網址中加入了 v=alpha 來載入測試版最新的真實 3D 地圖引擎 -->
+    <!-- 請在 key= 後方替換為您的 API 金鑰 -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD1lazqP8Xx_L6VnvHJHFxAgSm0Jib0GvU&v=alpha&callback=initMap"></script>
+</body>
+</html>
