@@ -1,1 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>相關係數遊樂場</title>
+  <link rel="icon" href="data:,">
 
+  <!-- MapLibre GL JS 與 PMTiles 原生支援 -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+
+  <!-- Plotly、PapaParse 與 Simple Statistics -->
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+  
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- 頂部標題與導覽列 -->
+  <header class="app-header">
+    <div class="header-title">相關係數遊樂場</div>
+    <nav class="nav-bar">
+      <button class="nav-btn active" data-tab="tab-concept">認識相關係數</button>
+      <button class="nav-btn" data-tab="tab-marriage">婚生的抉擇</button>
+      <button class="nav-btn" data-tab="tab-wealth">致富的條件</button>
+      <button class="nav-btn" data-tab="tab-population">人口的流動</button>
+    </nav>
+  </header>
+
+  <!-- 主內容容器 -->
+  <main id="content-container">
+    <!-- 單元一：認識相關係數 -->
+    <section id="tab-concept" class="tab-pane active">
+      <div class="concept-layout">
+        <div class="concept-ctrl">
+          <h3>Adjust Correlation (r)</h3>
+          <div class="slider-wrapper">
+            <span>-1.0</span>
+            <input type="range" id="r-slider" min="-1" max="1" step="0.01" value="0.6">
+            <span>+1.0</span>
+          </div>
+          <div class="r-display">
+            <span class="r-label">COEFFICIENT VALUE</span>
+            <div id="r-val-text" class="r-value">+0.60</div>
+            <div id="r-status" class="r-tag">高度正相關</div>
+          </div>
+          <div class="explanation-box">
+            <h4>💡 這是什麼意思？</h4>
+            <p>皮爾森相關係數（r）衡量兩個連續變數之間的<strong>線性關聯強度與方向</strong>：</p>
+            <ul>
+              <li><strong>正相關 (r &gt; 0)</strong>：當 X 增加時，Y 傾向於增加。</li>
+              <li><strong>負相關 (r &lt; 0)</strong>：當 X 增加時，Y 傾向於減少。</li>
+              <li><strong>零相關 (r ≈ 0)</strong>：沒有明顯的線性規律。</li>
+            </ul>
+          </div>
+          <div class="math-card">
+            <h5>數學備註（Mathematical Note）</h5>
+            <p>資料點以高斯白噪音模擬：</p>
+            <code>Y = r·X + √(1-r²)·Z</code>
+            <small>其中 X 與 Z 為相互獨立的標準常態分佈噪音。</small>
+          </div>
+        </div>
+        <div class="concept-display">
+          <div id="concept-plot"></div>
+          <div class="preset-buttons">
+            <button class="btn-preset" data-r="0.0">無相關 (r = 0.00)</button>
+            <button class="btn-preset" data-r="0.85">高度正相關 (r = 0.85)</button>
+            <button class="btn-preset" data-r="-0.85">高度負相關 (r = -0.85)</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 單元二：婚生的抉擇 -->
+    <section id="tab-marriage" class="tab-pane">
+      <div class="workspace-container">
+        <div class="pane pane-map">
+          <div class="map-toolbar">
+            <div class="custom-multiselect">
+              <button type="button" class="select-btn county-dropdown-btn">
+                <span class="county-btn-text">請選擇行政區 (已選 0 縣市)</span>
+                <span class="arrow">▼</span>
+              </button>
+              <div class="dropdown-content county-dropdown-menu">
+                <div class="dropdown-actions">
+                  <button type="button" class="btn-select-all-counties">全選</button>
+                  <div style="display: flex; gap: 6px;">
+                    <button type="button" class="btn-clear-counties">清空</button>
+                    <button type="button" class="btn-done-counties">完成</button>
+                  </div>
+                </div>
+                <div class="checkbox-list county-checkbox-container"></div>
+              </div>
+            </div>
+            <select class="map-var-select">
+              <option value="">選擇統計數據 (應變數 Y)</option>
+            </select>
+            <button class="btn-load-map btn-load disabled" disabled>載入地圖</button>
+            <button class="btn-reset-map btn-reset">清除重選</button>
+          </div>
+          <div class="map-container" id="map-marriage">
+            <div class="map-legend" style="display: none;"></div>
+          </div>
+        </div>
+        <div class="resizer resizer-horizontal"></div>
+        <div class="pane pane-right">
+          <div class="pane-plot">
+            <div class="plot-toolbar">
+              <select class="scatter-x-select">
+                <option value="">選擇自變數 X</option>
+              </select>
+              <span>*此處選取的資料為 X 軸數據，地圖的資料為 Y 軸數據</span>
+            </div>
+            <div class="plotly-scatter" id="scatter-marriage"></div>
+          </div>
+          <div class="resizer resizer-vertical"></div>
+          <div class="pane-chat">
+            <div class="chat-header">🤖 AI 數據討論夥伴</div>
+            <div class="chat-messages chat-body">
+              <div class="chat-msg ai-msg">同學你好！我是你的 AI 統計學助教。當你在左側切換地圖指標或右側探索散布圖時，可以隨時問我指標背後的社會意涵與因果推論！</div>
+            </div>
+            <div class="chat-footer">
+              <input type="text" class="chat-input" placeholder="問問 AI：這兩項指標是否有因果關係？" />
+              <button class="btn-send-chat">送出</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 單元三：致富的條件 -->
+    <section id="tab-wealth" class="tab-pane">
+      <div class="workspace-container">
+        <div class="pane pane-map">
+          <div class="map-toolbar">
+            <div class="custom-multiselect">
+              <button type="button" class="select-btn county-dropdown-btn">
+                <span class="county-btn-text">請選擇行政區 (已選 0 縣市)</span>
+                <span class="arrow">▼</span>
+              </button>
+              <div class="dropdown-content county-dropdown-menu">
+                <div class="dropdown-actions">
+                  <button type="button" class="btn-select-all-counties">全選</button>
+                  <div style="display: flex; gap: 6px;">
+                    <button type="button" class="btn-clear-counties">清空</button>
+                    <button type="button" class="btn-done-counties">完成</button>
+                  </div>
+                </div>
+                <div class="checkbox-list county-checkbox-container"></div>
+              </div>
+            </div>
+            <select class="map-var-select">
+              <option value="">選擇統計數據 (應變數 Y)</option>
+            </select>
+            <button class="btn-load-map btn-load disabled" disabled>載入地圖</button>
+            <button class="btn-reset-map btn-reset">清除重選</button>
+          </div>
+          <div class="map-container" id="map-wealth">
+            <div class="map-legend" style="display: none;"></div>
+          </div>
+        </div>
+        <div class="resizer resizer-horizontal"></div>
+        <div class="pane pane-right">
+          <div class="pane-plot">
+            <div class="plot-toolbar">
+              <select class="scatter-x-select">
+                <option value="">選擇自變數 X</option>
+              </select>
+              <span>*此處選取的資料為 X 軸數據，地圖的資料為 Y 軸數據</span>
+            </div>
+            <div class="plotly-scatter" id="scatter-wealth"></div>
+          </div>
+          <div class="resizer resizer-vertical"></div>
+          <div class="pane-chat">
+            <div class="chat-header">🤖 AI 數據討論夥伴</div>
+            <div class="chat-messages chat-body">
+              <div class="chat-msg ai-msg">同學你好！我是你的 AI 統計學助教。當你在左側切換地圖指標或右側探索散布圖時，可以隨時問我指標背後的社會意涵與因果推論！</div>
+            </div>
+            <div class="chat-footer">
+              <input type="text" class="chat-input" placeholder="問問 AI：這兩項指標是否有因果關係？" />
+              <button class="btn-send-chat">送出</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 單元四：人口的流動 -->
+    <section id="tab-population" class="tab-pane">
+      <div class="workspace-container">
+        <div class="pane pane-map">
+          <div class="map-toolbar">
+            <div class="custom-multiselect">
+              <button type="button" class="select-btn county-dropdown-btn">
+                <span class="county-btn-text">請選擇行政區 (已選 0 縣市)</span>
+                <span class="arrow">▼</span>
+              </button>
+              <div class="dropdown-content county-dropdown-menu">
+                <div class="dropdown-actions">
+                  <button type="button" class="btn-select-all-counties">全選</button>
+                  <div style="display: flex; gap: 6px;">
+                    <button type="button" class="btn-clear-counties">清空</button>
+                    <button type="button" class="btn-done-counties">完成</button>
+                  </div>
+                </div>
+                <div class="checkbox-list county-checkbox-container"></div>
+              </div>
+            </div>
+            <select class="map-var-select">
+              <option value="">選擇統計數據 (應變數 Y)</option>
+            </select>
+            <button class="btn-load-map btn-load disabled" disabled>載入地圖</button>
+            <button class="btn-reset-map btn-reset">清除重選</button>
+          </div>
+          <div class="map-container" id="map-population">
+            <div class="map-legend" style="display: none;"></div>
+          </div>
+        </div>
+        <div class="resizer resizer-horizontal"></div>
+        <div class="pane pane-right">
+          <div class="pane-plot">
+            <div class="plot-toolbar">
+              <select class="scatter-x-select">
+                <option value="">選擇自變數 X</option>
+              </select>
+              <span>*此處選取的資料為 X 軸數據，地圖的資料為 Y 軸數據</span>
+            </div>
+            <div class="plotly-scatter" id="scatter-population"></div>
+          </div>
+          <div class="resizer resizer-vertical"></div>
+          <div class="pane-chat">
+            <div class="chat-header">🤖 AI 數據討論夥伴</div>
+            <div class="chat-messages chat-body">
+              <div class="chat-msg ai-msg">同學你好！我是你的 AI 統計學助教。當你在左側切換地圖指標或右側探索散布圖時，可以隨時問我指標背後的社會意涵與因果推論！</div>
+            </div>
+            <div class="chat-footer">
+              <input type="text" class="chat-input" placeholder="問問 AI：這兩項指標是否有因果關係？" />
+              <button class="btn-send-chat">送出</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 載入所有腳本 -->
+  <script src="js/tab1_concept.js"></script>
+  <script src="js/gemini_chat.js"></script>
+  <script src="js/splitter.js"></script>
+  <script src="js/tab_explorer.js"></script>
+</body>
+</html>
