@@ -1,6 +1,7 @@
 // js/gemini_chat.js
+
 window.sendToGemini = async function(userMessage, currentContext) {
-  // 若使用後端反向代理：
+  // 呼叫 Vercel 的後端 Serverless Function
   const url = '/api/chat';
 
   const systemInstruction = `
@@ -20,7 +21,10 @@ window.sendToGemini = async function(userMessage, currentContext) {
 
   const payload = {
     contents: [
-      { role: "user", parts: [{ text: `${systemInstruction}\n\n學生問：${userMessage}` }] }
+      {
+        role: "user",
+        parts: [{ text: `${systemInstruction}\n\n學生問：${userMessage}` }]
+      }
     ]
   };
 
@@ -29,6 +33,16 @@ window.sendToGemini = async function(userMessage, currentContext) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
+
   const data = await response.json();
-  return data.candidates[0].content.parts[0].text;
+
+  if (data.error) {
+    throw new Error(`伺服器回應錯誤: ${data.error.message || JSON.stringify(data.error)}`);
+  }
+
+  if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+    return data.candidates[0].content.parts[0].text;
+  } else {
+    throw new Error("未能產生有效回應，請稍後重試。");
+  }
 };
