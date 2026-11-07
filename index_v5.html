@@ -1,74 +1,2230 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant-TW">
 <head>
-    <title>手機座標回報平台</title>
-    <style>
-        body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            font-family: sans-serif;
-            overflow: hidden;
-        }
-        #map {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index:1;
-        }
-        #control-panel {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 1000; /* 設定較高的 z-index */
-        }
-        #title {
-            font-size: 55px; /* 調整標題字體大小 */
-            font-weight: bold;
-            color: black;
-            margin-bottom: 10px;
-        }
-        #name {
-            padding: 5px;
-            width: 300px; /* 調整文字輸入欄位寬度 */
-            height: 40px; /* 調整文字輸入欄位高度 */
-            font-size: 30px; /* 調整下拉選單字體大小 */
-        }
-        #report {
-            padding: 8px 40px; /* 調整按鈕大小 */
-            font-size: 30px; /* 調整按鈕字體大小 */
-        }
-        #showMarkers {
-            transform: scale(2); /* 調整核取方塊大小 */
-        }
-        .marker-label {
-            font-size: 40px; /* 調整「顯示回報點位」字體大小 */
-            padding: 10px;
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>灰階經建地形圖產生器</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --ink:#1c2731; --muted:#5d6b77; --rule:#cfd8e0; --rule-soft:#e9eef2;
+  --sky:#b6cfe7; --sky-edge:#94b4d3; --survey:#24577f; --survey-soft:#e3edf6;
+  --go:#3b6a31; --go-hover:#2f5727; --alert:#c11f2a; --paper:#fff;
+  --drawer-w:318px; --mL:48px; --mR:48px; --mT:30px; --mB:30px;
+  --font:"Noto Sans TC","Microsoft JhengHei","PingFang TC","Heiti TC",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font)}
+button,input,select{font-family:inherit}
+:focus-visible{outline:3px solid #f2a900;outline-offset:2px}
+
+/* ---------- 標題列 ---------- */
+.topbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;padding:10px 16px;background:var(--sky);border-bottom:1px solid var(--sky-edge)}
+.topbar h1{margin:0 auto 0 0;font-size:27px;font-weight:700;letter-spacing:.14em;color:#17324a}
+.status{display:flex;align-items:center;gap:8px;min-height:38px;padding:6px 12px;background:#fff;border:1px solid var(--sky-edge);border-radius:6px;font-size:14px;max-width:min(560px,100%)}
+.status .dot{width:14px;height:14px;border-radius:3px;background:#9aa7b2;flex:none;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700}
+.status[data-state="ok"] .dot{background:#2f8f3a}
+.status[data-state="ok"] .dot::after{content:"✓"}
+.status[data-state="loading"] .dot{background:#d08a00}
+.status[data-state="error"] .dot{background:var(--alert)}
+.status[data-state="error"] .dot::after{content:"!"}
+.status span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbtn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border:1px solid var(--sky-edge);border-radius:6px;background:#fff;color:#17324a;font-size:14px;cursor:pointer}
+.hbtn:hover{background:var(--survey-soft)}
+.hbtn svg{width:16px;height:16px;flex:none}
+
+/* ---------- 工具列 ---------- */
+.toolbar{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;padding:10px 12px 8px}
+.toolbar .group{display:flex;gap:10px;flex-wrap:wrap}
+.toolbar .sep{width:1px;background:var(--rule);margin:4px 6px}
+.tbtn{width:96px;min-height:68px;padding:6px 10px;border:2px solid var(--survey);border-radius:2px;background:#fff;color:var(--survey);font-size:16px;font-weight:500;line-height:1.35;cursor:pointer;word-break:break-all}
+.tbtn:hover{background:var(--survey-soft)}
+.tbtn[aria-pressed="true"]{border-color:var(--alert);box-shadow:inset 0 0 0 1px var(--alert);color:#122c42}
+.tbtn.go{background:var(--go);border-color:var(--go);color:#fff}
+.tbtn.go:hover{background:var(--go-hover)}
+.tbtn.go[aria-pressed="true"]{background:#7a2a1a;border-color:#7a2a1a;box-shadow:none}
+.tbtn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- 地圖區 ---------- */
+#mapWrap{position:relative;width:100%;height:600px;background:#fff;touch-action:none}
+#frameCanvas{position:absolute;inset:0;pointer-events:none;z-index:5}
+#map{position:absolute;left:var(--mL);right:var(--mR);top:var(--mT);bottom:var(--mB);background:#fff;z-index:1}
+#map.leaflet-container{background:#fff}
+#mapWrap.locked #map{outline:2px solid var(--alert);outline-offset:0}
+.leaflet-container{font-family:var(--font)}
+.vec-canvas,.grid-canvas{position:absolute;left:0;top:0;pointer-events:none}
+.rh{position:absolute;z-index:8;background:transparent}
+.rh-e{top:var(--mT);bottom:var(--mB);right:0;width:12px;cursor:ew-resize}
+.rh-s{left:var(--mL);right:var(--mR);bottom:0;height:12px;cursor:ns-resize}
+.rh-se{right:0;bottom:0;width:22px;height:22px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,#8796a3 50%,#8796a3 58%,transparent 58%,transparent 70%,#8796a3 70%,#8796a3 78%,transparent 78%)}
+.rh:hover{background-color:rgba(36,87,127,.12)}
+.rh-se:hover{background-color:rgba(36,87,127,.12)}
+#mapWrap.locked .rh{display:none}
+
+.ctrlstack{position:absolute;z-index:6;top:calc(var(--mT) + 10px);right:calc(var(--mR) + 10px);display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.zoombox,.actbox,.basebox{box-sizing:border-box;height:46px;display:flex;align-items:center;gap:10px;padding:0 12px;background:rgba(255,255,255,.95);border:1px solid #b9c4cd;border-radius:6px;font-family:var(--font);font-size:15px;line-height:1.2;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.basebox{position:absolute;z-index:6;top:calc(var(--mT) + 10px);left:calc(var(--mL) + 10px);gap:6px}
+.basebox select{height:30px;padding:0 6px;line-height:1.2;border:1px solid #9fb0bf;border-radius:4px;background:#fff;color:var(--ink);font:inherit;font-size:15px;cursor:pointer}
+.actbox{gap:8px}
+.abtn{height:30px;padding:0 16px;line-height:1.2;border:1px solid #9fb0bf;border-radius:4px;background:#fff;color:var(--ink);font:inherit;font-size:15px;cursor:pointer;white-space:nowrap}
+.abtn:hover{background:var(--survey-soft)}
+.abtn.confirm,.abtn.go{background:var(--go);border-color:var(--go);color:#fff}
+.abtn.confirm:hover,.abtn.go:hover{background:var(--go-hover)}
+.abtn.confirm[aria-pressed="true"]{background:var(--alert);border-color:var(--alert);color:#fff}
+.abtn.confirm[aria-pressed="true"]:hover{background:#9d1822}
+.zoombox input{width:130px;accent-color:var(--survey)}
+.zoombox .zval{font-variant-numeric:tabular-nums;min-width:22px;font-weight:700}
+.zoombox .zscale{font-size:12px;color:var(--muted);white-space:nowrap}
+.zoombox.locked input{opacity:.4}
+.a4btns{display:flex;gap:4px;padding-left:8px;border-left:1px solid var(--rule)}
+.a4btns button{height:26px;padding:0 8px;border:1px solid #9fb0bf;border-radius:4px;background:#fff;font-size:12px;cursor:pointer;white-space:nowrap}
+.a4btns button:hover{background:var(--survey-soft)}
+.zoombox.locked .a4btns{display:none}
+.zoombox.compact .zscale{display:none}
+.zoombox.compact input{width:90px}
+
+.legend{position:absolute;z-index:6;left:calc(var(--mL) + 10px);bottom:calc(var(--mB) + 10px);min-width:200px;max-width:min(420px,60%);max-height:55%;overflow:auto;padding:8px 12px 10px;background:rgba(255,255,255,.96);border:1px solid #9aa6b0;border-radius:4px;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.legend header{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.legend header b{font-size:14px}
+.legend header small{color:var(--muted)}
+.legend header button{margin-left:auto;border:0;background:none;color:var(--survey);cursor:pointer;font-size:12px;padding:0}
+.legend .lg-rows{display:flex;flex-direction:column;gap:2px}
+.legend .lg-row{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:2px 4px;border-radius:3px;cursor:grab;touch-action:none;user-select:none}
+.legend .lg-row:hover{background:#eef3f7}
+.legend .lg-row:focus-visible{outline:2px solid var(--survey);outline-offset:0}
+.legend .lg-row.dragging{background:#dfe9f2;box-shadow:0 2px 6px rgba(0,0,0,.18);cursor:grabbing}
+.legend .lg-row.fixed{cursor:default}
+.legend .lg-row.fixed:hover{background:none}
+.legend .lg-grip{width:10px;color:#8a97a3;font-size:13px;line-height:1}
+.legend .empty{color:var(--muted)}
+.legend .lg-opt{display:flex;gap:6px;align-items:center;margin-top:6px;padding-top:6px;border-top:1px solid var(--rule-soft);font-size:12px;color:var(--muted)}
+.legend .lg-opt label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.legend .lg-opt button{margin-left:auto;border:0;background:none;color:var(--survey);cursor:pointer;font-size:12px;padding:0}
+.legend.min .lg-rows,.legend.min .lg-opt,.legend.min .empty{display:none}
+
+.busy{position:absolute;z-index:6;right:calc(var(--mR) + 10px);bottom:calc(var(--mB) + 10px);padding:4px 10px;background:rgba(28,39,49,.86);color:#fff;border-radius:12px;font-size:12px;display:none}
+.busy.on{display:block}
+
+/* 遮罩標示 */
+.mask-label{pointer-events:none}
+.mask-label div{transform:translate(-50%,-50%);width:max-content;padding:6px 10px;background:#fff;border:1px solid #7b8792;color:#3d4851;font-size:13px;text-align:center;line-height:1.5}
+
+/* ---------- 註記文字方塊 ---------- */
+.anno-icon{background:none;border:0}
+.anno-box{position:absolute;left:0;top:0;transform-origin:50% 50%;padding:2px 6px;white-space:nowrap;line-height:1.15;color:#000;border:1px dashed rgba(36,87,127,.55);background:transparent;text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff,0 0 4px #fff;cursor:default;user-select:none}
+.anno-box .anno-text{display:block;outline:none}
+.anno-box .anno-text[contenteditable="true"]{background:#fffbe6;cursor:text;user-select:text}
+.anno-box .ah{position:absolute;width:18px;height:18px;padding:0;border:1px solid #6a7782;border-radius:50%;background:#fff;color:#1c2731;font:700 11px/16px var(--font);text-shadow:none;cursor:pointer;opacity:0;transition:opacity .12s;display:grid;place-items:center}
+.anno-box .ah-rot{left:-11px;top:-11px;cursor:grab}
+.anno-box .ah-rot em{position:absolute;left:20px;top:-1px;font-style:normal;font-size:10px;font-weight:500;background:#fff;border:1px solid #c6ced5;padding:0 3px;border-radius:3px;white-space:nowrap}
+.anno-box .ah-del{right:-11px;top:-11px;color:var(--alert);font-size:13px}
+.anno-box .ah-move{left:-11px;bottom:-11px;cursor:move}
+.anno-box:hover .ah,.anno-box.is-active .ah{opacity:1}
+.anno-box.is-active{border-color:var(--alert);border-style:solid;z-index:1}
+.anno-box .ah-bg{right:-11px;bottom:-11px;font-size:10px}
+.anno-box.bg{background:#fff;text-shadow:none}
+.anno-box.restricted .ah-rot,.anno-box.restricted .ah-move,.anno-box.restricted .ah-bg{display:none}
+.anno-box.sym .ah-rot,.anno-box.sym .ah-bg{display:none}
+.anno-box.pt{left:7px;transform-origin:50% 50%;padding:1px 4px}
+.anno-box.pt.noname{left:0;width:16px;height:16px;padding:0}
+.anno-box.sym{padding:0;line-height:0}
+.anno-box.sym canvas{display:block;width:30px;height:30px}
+body.anno-clean .anno-box{border-color:transparent}
+body.anno-clean .anno-box .ah{display:none}
+
+/* ---------- 右側圖層選單 ---------- */
+.drawer{position:fixed;right:0;top:160px;height:calc(100vh - 170px);width:var(--drawer-w);max-width:88vw;display:flex;z-index:1200;background:#fff;border:1px solid var(--rule);border-right:0;box-shadow:-6px 0 18px rgba(20,40,60,.14);transition:transform .25s ease}
+.drawer.collapsed{transform:translateX(100%)}
+.drawer-tab{position:absolute;left:-34px;top:10px;width:34px;padding:12px 0 10px;border:0;border-radius:6px 0 0 6px;background:var(--alert);color:#fff;font-size:15px;font-weight:700;line-height:1.3;text-align:center;cursor:pointer;box-shadow:-2px 2px 6px rgba(0,0,0,.18)}
+.drawer-tab span{display:block}
+.drawer-tab::after{content:"▸";display:block;margin-top:6px;font-size:11px}
+.drawer.collapsed .drawer-tab::after{content:"◂"}
+.drawer-body{flex:1;overflow:auto;overscroll-behavior:contain}
+.sec{border-bottom:1px solid var(--rule)}
+.sec-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f2f5f8;border-bottom:1px solid var(--rule-soft)}
+.sec-head button{flex:1;display:flex;align-items:center;gap:6px;padding:0;border:0;background:none;color:var(--ink);font-size:16px;font-weight:700;text-align:left;cursor:pointer}
+.sec-head button::before{content:"▼";font-size:12px;transition:transform .15s}
+.sec.closed .sec-head button::before{transform:rotate(-90deg)}
+.sec.closed .sec-body{display:none}
+.sec-head small{color:var(--muted);font-size:12px}
+.sec-opts{display:flex;flex-wrap:wrap;gap:4px 14px;padding:8px 12px;border-bottom:1px solid var(--rule-soft);font-size:13px;color:var(--muted)}
+.sec-opts label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.row{display:grid;grid-template-columns:18px 36px minmax(0,1fr) 84px 26px;align-items:center;gap:6px;padding:5px 10px 5px 12px;border-bottom:1px solid var(--rule-soft);font-size:14px}
+.row:hover{background:#fafbfc}
+.row input[type=checkbox]{width:16px;height:16px;margin:0;accent-color:#1c2731}
+.row canvas{width:36px;height:16px;display:block}
+.row label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.row input[type=range]{width:84px;accent-color:#1c2731}
+.row output{font-size:11px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.row.anno{grid-template-columns:18px minmax(0,1fr) auto}
+.row.anno small{color:var(--muted);font-size:11px;text-align:right;max-width:120px;line-height:1.3}
+.row.anno .raw{display:block;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.sec-foot{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px}
+.sbtn{height:32px;padding:0 12px;border:1px solid #9fb0bf;border-radius:4px;background:#fff;color:var(--ink);font-size:13px;cursor:pointer}
+.sbtn:hover{background:var(--survey-soft)}
+.sbtn[aria-pressed="true"]{background:#1c2731;border-color:#1c2731;color:#fff}
+.anno-tools{display:grid;gap:8px;padding:10px 12px;border-bottom:1px solid var(--rule-soft);font-size:13px}
+.anno-tools .line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.anno-tools input[type=range]{flex:1;accent-color:#1c2731}
+.note{padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.6}
+.note b{color:var(--ink)}
+
+/* ---------- 提示、輸出 ---------- */
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;z-index:3000;max-width:min(560px,92vw);padding:10px 16px;background:#1c2731;color:#fff;border-radius:6px;font-size:14px;line-height:1.5;transition:opacity .2s,transform .2s;pointer-events:none}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.overlay{position:fixed;inset:0;z-index:2500;display:grid;place-items:center;background:rgba(20,30,40,.45)}
+.overlay[hidden]{display:none}
+.overlay .card{min-width:300px;padding:20px 24px;background:#fff;border-radius:8px;font-size:15px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.overlay progress{width:100%;margin-top:12px}
+.leaflet-popup-content{font-size:12px;max-height:280px;overflow:auto;margin:10px 12px}
+.leaflet-popup-content table{border-collapse:collapse}
+.leaflet-popup-content td{border-bottom:1px solid #eee;padding:1px 6px 1px 0;vertical-align:top}
+.leaflet-popup-content h4{margin:8px 0 2px;font-size:13px}
+.leaflet-popup-content h4:first-child{margin-top:0}
+.dropping #mapWrap::after{content:"放開以載入 .pmtiles 檔";position:absolute;inset:0;z-index:20;display:grid;place-items:center;background:rgba(36,87,127,.18);border:3px dashed var(--survey);font-size:22px;color:#17324a}
+
+@media (prefers-reduced-motion: reduce){ .drawer,#toast,.anno-box .ah{transition:none} }
+@media (max-width:760px){
+  .topbar h1{font-size:21px}
+  .tbtn{width:78px;min-height:58px;font-size:14px}
+  :root{--mL:40px;--mR:40px}
+}
+</style>
 </head>
 <body>
-    <div id="control-panel">
-        <div id="title">手機座標回報平台</div>
-        <select id="name">
-            <option value="">請選擇姓名</option>
-            <option value="soccerbay">soccerbay</option>
-            <option value="xxism">xxism</option>
-            <option value="adam">adam</option>option>
-            <option value="judy">judy</option>option>
-            <option value="mingsheng">mingsheng</option>option>
-        </select>
-        <button id="report">回報我的位置</button><br><br>
-        <input type="checkbox" id="showMarkers">
-        <span class="marker-label">顯示回報點位</span>
+
+<header class="topbar">
+  <h1>灰階經建地形圖產生器</h1>
+  <div class="status" id="status" data-state="idle" role="status" aria-live="polite"><span class="dot"></span><span id="statusText">尚未載入向量圖磚（.pmtiles）</span></div>
+  <label class="hbtn" title="選擇電腦中的 .pmtiles 檔；也可直接拖曳到地圖上">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.5h5l1.5 1.5h6.5v8.5h-13z" fill="#f2b632" stroke="#b07a0c"/></svg>
+    載入本機 .pmtiles 檔<input type="file" id="fileInput" accept=".pmtiles,.json" multiple hidden>
+  </label>
+</header>
+
+
+<main>
+  <div id="mapWrap">
+    <div id="map" aria-label="地圖"></div>
+    <canvas id="frameCanvas" aria-hidden="true"></canvas>
+
+    <div class="basebox" id="basebox">
+      <label for="baseSelect">底圖：</label>
+      <select id="baseSelect" aria-label="切換底圖">
+        <option value="emap">通用電子地圖</option>
+        <option value="google">谷歌地圖</option>
+        <option value="photo">通用正射影像</option>
+        <option value="topo">經建版地形圖（1/25000）</option>
+        <option value="bao">台灣堡圖</option>
+        <option value="none">關閉底圖</option>
+      </select>
     </div>
-    <div id="map"></div>
-    <script src="script4.js"></script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6rarU_BwnVh-XmHNZGw0KBZ9TaRS_BZg&callback=initMap"></script>
+
+    <div class="ctrlstack" id="ctrlStack">
+    <div class="zoombox" id="zoombox">
+      <label for="zoomSlider">比例尺 (Zoom)：<span class="zval" id="zoomVal">8</span></label>
+      <input type="range" id="zoomSlider" min="7" max="17" step="1" value="8">
+      <span class="zscale" id="zoomScale"></span>
+      <span class="a4btns" role="group" aria-label="把地圖框調成 A4 比例">
+        <button type="button" data-a4="land" title="把地圖框調成 A4 橫式的比例">A4 橫</button>
+        <button type="button" data-a4="port" title="把地圖框調成 A4 直式的比例">A4 直</button>
+      </span>
+    </div>
+    <div class="actbox" role="group" aria-label="確定範圍與輸出">
+      <button class="abtn confirm" type="button" id="btnConfirm" aria-pressed="false">確定範圍</button>
+      <button class="abtn go" type="button" id="btnExport" title="輸出 A4、300 dpi 黑白 PNG（不含底圖）">輸出圖檔</button>
+    </div>
+    </div>
+
+    <section class="legend" id="legend" aria-label="圖例">
+      <header><b>圖例（灰階印刷）</b><small>拖曳排序｜右側調色</small><button type="button" id="legendMin" aria-expanded="true">收合</button></header>
+      <div class="empty" id="legendEmpty">尚未勾選圖層</div>
+      <div class="lg-rows" id="legendRows"></div>
+      <div class="lg-opt"><label><input type="checkbox" id="legendExport" checked>輸出圖檔時附上圖例</label>
+        <button type="button" id="legendReset" hidden>恢復預設順序</button></div>
+    </section>
+
+    <div class="busy" id="busy"></div>
+    <div class="rh rh-e" data-mode="e" title="拖曳調整寬度（雙擊恢復）"></div>
+    <div class="rh rh-s" data-mode="s" title="拖曳調整高度（雙擊恢復）"></div>
+    <div class="rh rh-se" data-mode="es" title="拖曳調整寬度與高度（雙擊恢復）"></div>
+  </div>
+</main>
+
+<aside class="drawer" id="drawer" aria-label="圖層選單">
+  <button class="drawer-tab" id="drawerTab" type="button" aria-expanded="true" aria-label="圖層選單"><span>圖</span><span>層</span><span>選</span><span>單</span></button>
+  <div class="drawer-body">
+    <section class="sec" data-group="point">
+      <div class="sec-head"><button type="button">1. 點圖層 (Point)</button><small>灰階</small></div>
+      <div class="sec-body">
+        <div class="sec-opts"><span>勾選建物符號、交通設施後，地圖上會顯示名稱，可按方塊右上角 × 刪除個別的點。</span>
+          <button class="sbtn" type="button" id="ptRestore" hidden>恢復已刪除的點</button></div>
+      </div>
+    </section>
+    <section class="sec" data-group="line">
+      <div class="sec-head"><button type="button">2. 線圖層 (Line)</button><small>灰階</small></div>
+      <div class="sec-body">
+        <div class="sec-opts"><label><input type="checkbox" id="optContourLabel" checked>計曲線標註高程</label></div>
+      </div>
+    </section>
+    <section class="sec" data-group="polygon">
+      <div class="sec-head"><button type="button">3. 面圖層 (Polygon)</button><small>灰階</small></div>
+      <div class="sec-body"></div>
+    </section>
+    <section class="sec" data-group="anno" id="annoSec" hidden>
+      <div class="sec-head"><button type="button">4. 註記 (Annotation)</button><small id="annoCount"></small></div>
+      <div class="sec-body">
+        <div class="anno-tools">
+          <div class="line"><span>字級</span><input type="range" id="annoScale" min="60" max="180" step="5" value="100"><output id="annoScaleVal">100%</output></div>
+          <div class="line"><label><input type="checkbox" id="annoBgAll"> 文字加白底遮罩（套用全部，個別方塊可按右下角 ▣ 切換）</label></div>
+          <div class="line"><select id="symPick" aria-label="要新增的點符號" style="flex:1;height:32px"></select>
+            <button class="sbtn" type="button" id="symAdd">＋ 新增點符號</button></div>
+          <div class="line">
+            <label><input type="checkbox" id="annoChrome" checked> 顯示編輯框</label>
+            <button class="sbtn" type="button" id="annoAdd">＋ 新增文字</button>
+            <button class="sbtn" type="button" id="annoClear">清除全部</button>
+          </div>
+        </div>
+        <div id="annoRows"></div>
+        <p class="note">方塊<b>左上角</b>拖曳可旋轉（按住 Shift 以 15° 為單位，點一下可輸入角度）、<b>右上角</b>刪除、<b>左下角</b>拖曳移動、<b>右下角</b>切換白底遮罩；<b>雙擊文字</b>可修改內容。建物、交通設施的名稱在確定範圍後也可以這樣調整，按 × 會連同點符號一起刪除。</p>
+      </div>
+    </section>
+    <div class="sec-foot">
+      <button class="sbtn" type="button" id="btnInspect" aria-pressed="false" title="點地圖上的圖徵，顯示屬性欄位與代碼">查詢屬性</button>
+      <button class="sbtn" type="button" id="btnResetGray">灰階恢復預設</button>
+    </div>
+    <p class="note">輸出圖檔只含勾選的向量圖層、方格網、註記與圖例，<b>不含底圖</b>；油印時建議線條灰階 0–80、面狀填色 200 以上。</p>
+  </div>
+</aside>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div class="overlay" id="exportOverlay" hidden><div class="card"><div id="exportMsg">正在產生 A4 圖檔…</div><progress id="exportProg" max="100" value="0"></progress></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+/*CORE-BEGIN*/
+'use strict';
+
+/* ============================================================
+ * 可調整設定
+ * ============================================================ */
+const CONFIG = {
+  // 可填單一 .pmtiles 網址，或分割圖磚的 index.json 網址；也可在網址後加 ?pmtiles=...（.pmtiles 或 index.json）
+  // Cloudflare R2 上 .pmtiles 的公開網址（建議用自訂網域），例：'https://tiles.example.com/Taiwan_25K_Topo_EPSG4326.pmtiles'
+  // 也可填分割圖磚的 index.json；留空則等待使用者載入本機檔
+  PMTILES_URL: '',
+  MAP_MIN_ZOOM: 7,
+  MAP_MAX_ZOOM: 17,                       // 16、17 級以 15 級圖磚放大顯示（向量不會模糊）
+  START_VIEW: { lat: 23.72, lng: 120.95, zoom: 8 },
+  RADAR: { lat: 24.4975, lng: 121.0707, halfSizeM: 6000 },    // 樂山（鹿場大山北峰附近），往東西南北各 6 公里（12×12 = 144 km²）
+  GRID_STEP_M: 1000,
+  TICK_MM: 1,
+  EXPORT: { dpi: 300, marginMM: 13, footerMM: 6 },
+  ANNO_CLASSES: [3, 4, 5, 8, 10],
+  LABEL_FONT_PX: 12,                      // 建物／交通名稱、註記、自訂文字共用的預設字級（螢幕像素；輸出時等比例放大）
+  // 確定範圍後，第三、四類註記若與建物（bnm）、交通設施（tnm）名稱重複且距離在此範圍內，就不再顯示
+  ANNO_DEDUPE_CLASSES: [3, 4],
+  ANNO_DEDUPE_RADIUS_M: 400,
+  ANNO_DEDUPE_DELETED: true,              // 使用者已刪除的點，其同名註記也一併不顯示（視為不需要的資訊）
+  // 註記圖層名稱若無法自動辨識類別，可在此指定，例：{ 'Anno_C03': 3 }
+  ANNO_LAYER_CLASS: {},
+  // 點符號代碼對照（請用「查詢屬性」看實際欄位與代碼後填入），例：
+  // BuildP: { field: 'FCsubtype', map: { 0: 'temple', 1: 'school' } }
+  // 可用符號：temple school police fire hospital clinic post cemetery shrine church monument memorial power
+  //           substation water factory mine radio weather airport historic prison port fishport lighthouse
+  //           gas activity govCity govCounty townOffice station house generic
+  POINT_CODE_RULES: { BuildP: null, TransP: null },
+};
+
+/* ============================================================
+ * TWD97 TM2（EPSG:3826）投影：GRS80、中央經線 121°、k0 = 0.9999、東偏 250 000 m
+ * ============================================================ */
+const TM2 = (() => {
+  const a = 6378137.0, f = 1 / 298.257222101, k0 = 0.9999, lon0 = 121 * Math.PI / 180, FE = 250000;
+  const e2 = 2 * f - f * f, e4 = e2 * e2, e6 = e4 * e2, ep2 = e2 / (1 - e2);
+  const c0 = 1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256, c2 = 3 * e2 / 8 + 3 * e4 / 32 + 45 * e6 / 1024,
+        c4 = 15 * e4 / 256 + 45 * e6 / 1024, c6 = 35 * e6 / 3072;
+  const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+  const D2R = Math.PI / 180;
+  function forward(lat, lng) {
+    const p = lat * D2R, s = Math.sin(p), c = Math.cos(p), t = Math.tan(p);
+    const N = a / Math.sqrt(1 - e2 * s * s), T = t * t, C = ep2 * c * c, A = (lng * D2R - lon0) * c;
+    const M = a * (c0 * p - c2 * Math.sin(2 * p) + c4 * Math.sin(4 * p) - c6 * Math.sin(6 * p));
+    const x = FE + k0 * N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * A ** 5 / 120);
+    const y = k0 * (M + N * t * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A ** 4 / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6 / 720));
+    return [x, y];
+  }
+  function inverse(x, y) {
+    const mu = (y / k0) / (a * c0);
+    const p1 = mu + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * Math.sin(2 * mu) + (21 * e1 * e1 / 16 - 55 * e1 ** 4 / 32) * Math.sin(4 * mu)
+             + (151 * e1 ** 3 / 96) * Math.sin(6 * mu) + (1097 * e1 ** 4 / 512) * Math.sin(8 * mu);
+    const s = Math.sin(p1), c = Math.cos(p1), t = Math.tan(p1);
+    const C1 = ep2 * c * c, T1 = t * t, N1 = a / Math.sqrt(1 - e2 * s * s), R1 = a * (1 - e2) / Math.pow(1 - e2 * s * s, 1.5);
+    const D = (x - FE) / (N1 * k0);
+    const lat = p1 - (N1 * t / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * D ** 4 / 24
+              + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * D ** 6 / 720);
+    const lng = lon0 + (D - (1 + 2 * T1 + C1) * D ** 3 / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * D ** 5 / 120) / c;
+    return [lat / D2R, lng / D2R];
+  }
+  return { forward, inverse };
+})();
+
+/** 雷達站遮罩：TM2 正方形（每邊加密取樣），回傳 [[lat,lng],...] */
+function radarSquare(nPerEdge = 12) {
+  const [cx, cy] = TM2.forward(CONFIG.RADAR.lat, CONFIG.RADAR.lng);
+  const h = CONFIG.RADAR.halfSizeM, out = [];
+  const corners = [[cx - h, cy + h], [cx + h, cy + h], [cx + h, cy - h], [cx - h, cy - h]];
+  for (let i = 0; i < 4; i++) {
+    const [x0, y0] = corners[i], [x1, y1] = corners[(i + 1) % 4];
+    for (let j = 0; j < nPerEdge; j++) { const t = j / nPerEdge; out.push(TM2.inverse(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)); }
+  }
+  return out;
+}
+function inRadarMask(lat, lng) {
+  const [cx, cy] = TM2.forward(CONFIG.RADAR.lat, CONFIG.RADAR.lng);
+  const [x, y] = TM2.forward(lat, lng), h = CONFIG.RADAR.halfSizeM;
+  return Math.abs(x - cx) <= h && Math.abs(y - cy) <= h;
+}
+
+/* ============================================================
+ * PMTiles v3 讀取器（支援本機檔案與 HTTP Range）
+ * ============================================================ */
+class FileSource {
+  constructor(file) { this.file = file; this.name = file.name; this.size = file.size; }
+  async getBytes(offset, length) { return this.file.slice(offset, offset + length).arrayBuffer(); }
+}
+class UrlSource {
+  constructor(url) { this.url = url; this.name = decodeURIComponent(url.split('/').pop().split('?')[0]); this.size = 0; }
+  async getBytes(offset, length) {
+    const ctrl = new AbortController();
+    const res = await fetch(this.url, { headers: { Range: `bytes=${offset}-${offset + length - 1}` }, signal: ctrl.signal });
+    if (res.status === 200) {
+      const len = +res.headers.get('content-length') || 0;
+      if (len > length + 1024 * 1024) { ctrl.abort(); throw new Error('伺服器不支援 HTTP Range 分段讀取'); }
+      return (await res.arrayBuffer()).slice(offset, offset + length);
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const cr = res.headers.get('content-range');
+    if (cr && !this.size) { const m = cr.match(/\/(\d+)$/); if (m) this.size = +m[1]; }
+    return res.arrayBuffer();
+  }
+}
+
+async function decompressBytes(buf, compression) {
+  const u8 = new Uint8Array(buf);
+  if (u8.length > 2 && u8[0] === 0x1f && u8[1] === 0x8b) {
+    const stream = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new Response(stream).arrayBuffer();
+  }
+  if (compression === 3) throw new Error('不支援 brotli 壓縮的 PMTiles');
+  if (compression === 4) throw new Error('不支援 zstd 壓縮的 PMTiles');
+  return buf;
+}
+
+function readDirVarint(u8, st) {
+  let val = 0, mul = 1, b;
+  do { b = u8[st.p++]; val += (b & 0x7f) * mul; mul *= 128; } while (b & 0x80);
+  return val;
+}
+function parsePMHeader(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  if (String.fromCharCode(...u8.slice(0, 7)) !== 'PMTiles') throw new Error('這不是 PMTiles 檔案');
+  if (u8[7] !== 3) throw new Error(`僅支援 PMTiles v3（此檔為 v${u8[7]}）`);
+  const g = o => Number(dv.getBigUint64(o, true)), i32 = o => dv.getInt32(o, true) / 1e7;
+  return {
+    rootOffset: g(8), rootLength: g(16), metaOffset: g(24), metaLength: g(32), leafOffset: g(40), leafLength: g(48),
+    dataOffset: g(56), dataLength: g(64), numAddressed: g(72), numEntries: g(80), numContents: g(88),
+    clustered: u8[96] === 1, internalCompression: u8[97], tileCompression: u8[98], tileType: u8[99],
+    minZoom: u8[100], maxZoom: u8[101], minLon: i32(102), minLat: i32(106), maxLon: i32(110), maxLat: i32(114),
+    centerZoom: u8[118], centerLon: i32(119), centerLat: i32(123),
+  };
+}
+function parsePMDirectory(buf) {
+  const u8 = new Uint8Array(buf), st = { p: 0 };
+  const n = readDirVarint(u8, st), e = new Array(n);
+  let id = 0;
+  for (let i = 0; i < n; i++) { id += readDirVarint(u8, st); e[i] = { tileId: id, offset: 0, length: 0, runLength: 1 }; }
+  for (let i = 0; i < n; i++) e[i].runLength = readDirVarint(u8, st);
+  for (let i = 0; i < n; i++) e[i].length = readDirVarint(u8, st);
+  for (let i = 0; i < n; i++) {
+    const v = readDirVarint(u8, st);
+    e[i].offset = (v === 0 && i > 0) ? e[i - 1].offset + e[i - 1].length : v - 1;
+  }
+  return e;
+}
+function zxyToTileId(z, x, y) {
+  let acc = (Math.pow(4, z) - 1) / 3, d = 0, tx = x, ty = y;
+  for (let s = Math.pow(2, z - 1); s >= 1; s /= 2) {
+    const rx = (tx & s) > 0 ? 1 : 0, ry = (ty & s) > 0 ? 1 : 0;
+    d += s * s * ((3 * rx) ^ ry);
+    if (ry === 0) { if (rx === 1) { tx = s - 1 - tx; ty = s - 1 - ty; } const t = tx; tx = ty; ty = t; }
+  }
+  return acc + d;
+}
+function findPMEntry(entries, tileId) {
+  let lo = 0, hi = entries.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1, c = tileId - entries[mid].tileId;
+    if (c > 0) lo = mid + 1; else if (c < 0) hi = mid - 1; else return entries[mid];
+  }
+  if (hi >= 0) {
+    const e = entries[hi];
+    if (e.runLength === 0) return e;
+    if (tileId - e.tileId < e.runLength) return e;
+  }
+  return null;
+}
+class PMTilesArchive {
+  constructor(source) { this.source = source; this.leafCache = new Map(); }
+  async init() {
+    const head = await this.source.getBytes(0, 16384);
+    this.header = parsePMHeader(head.slice(0, 127));
+    const h = this.header;
+    const raw = (h.rootOffset + h.rootLength <= head.byteLength)
+      ? head.slice(h.rootOffset, h.rootOffset + h.rootLength)
+      : await this.source.getBytes(h.rootOffset, h.rootLength);
+    this.root = parsePMDirectory(await decompressBytes(raw, h.internalCompression));
+    return this;
+  }
+  async getMetadata() {
+    const h = this.header;
+    if (!h.metaLength) return {};
+    const buf = await decompressBytes(await this.source.getBytes(h.metaOffset, h.metaLength), h.internalCompression);
+    try { return JSON.parse(new TextDecoder().decode(buf)); } catch (e) { return {}; }
+  }
+  async _leaf(offset, length) {
+    const key = offset;
+    if (this.leafCache.has(key)) return this.leafCache.get(key);
+    const p = this.source.getBytes(this.header.leafOffset + offset, length)
+      .then(b => decompressBytes(b, this.header.internalCompression)).then(parsePMDirectory);
+    this.leafCache.set(key, p);
+    if (this.leafCache.size > 64) this.leafCache.delete(this.leafCache.keys().next().value);
+    return p;
+  }
+  async getTileBytes(z, x, y) {
+    const id = zxyToTileId(z, x, y);
+    let dir = this.root;
+    for (let depth = 0; depth < 4; depth++) {
+      const e = findPMEntry(dir, id);
+      if (!e) return null;
+      if (e.runLength > 0) {
+        const b = await this.source.getBytes(this.header.dataOffset + e.offset, e.length);
+        return decompressBytes(b, this.header.tileCompression);
+      }
+      dir = await this._leaf(e.offset, e.length);
+    }
+    return null;
+  }
+}
+
+/**
+ * 分割圖磚：overview.pmtiles（低層級）＋ 每個 partition_zoom 圖磚範圍一個 {z}-{x}-{y}.pmtiles
+ * index = { format:'gray-topo-partition', min_zoom, max_zoom, partition_zoom, overview, tiles:['11-1712-876', ...] }
+ * makeSource(檔名) 回傳 FileSource 或 UrlSource
+ */
+class PartitionedArchive {
+  constructor(index, makeSource) {
+    if (!index || !Array.isArray(index.tiles) || !index.partition_zoom) throw new Error('分割圖磚的 index.json 格式不正確');
+    this.index = index; this.make = makeSource; this.archives = new Map(); this.names = new Set(index.tiles);
+    this.header = { minZoom: index.min_zoom ?? 7, maxZoom: index.max_zoom ?? 15, tileType: 1 };
+  }
+  _arc(file) {
+    if (!this.archives.has(file)) this.archives.set(file, new PMTilesArchive(this.make(file)).init());
+    return this.archives.get(file);
+  }
+  async init() {
+    const first = this.index.overview || (this.index.tiles[0] + '.pmtiles');
+    const a = await this._arc(first);
+    if (a.header.tileType !== 1) throw new Error('分割檔不是向量圖磚（MVT）');
+    return this;
+  }
+  async getMetadata() { return {}; }
+  async getTileBytes(z, x, y) {
+    const pz = this.index.partition_zoom;
+    if (z < pz) { if (!this.index.overview) return null; return (await this._arc(this.index.overview)).getTileBytes(z, x, y); }
+    const d = z - pz, name = `${pz}-${Math.floor(x / Math.pow(2, d))}-${Math.floor(y / Math.pow(2, d))}`;
+    if (!this.names.has(name)) return null;
+    return (await this._arc(name + '.pmtiles')).getTileBytes(z, x, y);
+  }
+}
+
+/* ============================================================
+ * Mapbox Vector Tile 解碼（延遲解碼各圖層的圖徵）
+ * ============================================================ */
+const TEXT_DECODER = new TextDecoder();
+class Pbf {
+  constructor(u8) { this.buf = u8; this.pos = 0; this.dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength); }
+  varint() { let b, v = 0, m = 1; do { b = this.buf[this.pos++]; v += (b & 0x7f) * m; m *= 128; } while (b & 0x80); return v; }
+  string() { const l = this.varint(), s = TEXT_DECODER.decode(this.buf.subarray(this.pos, this.pos + l)); this.pos += l; return s; }
+  skip(wt) {
+    if (wt === 0) { while (this.buf[this.pos++] & 0x80) { /* */ } }
+    else if (wt === 1) this.pos += 8;
+    else if (wt === 2) { const l = this.varint(); this.pos += l; }
+    else if (wt === 5) this.pos += 4;
+    else throw new Error('MVT 格式錯誤（wire type ' + wt + '）');
+  }
+}
+function readMvtValue(p, end) {
+  let v = null;
+  while (p.pos < end) {
+    const tag = p.varint(), f = Math.floor(tag / 8), wt = tag & 7;
+    if (f === 1) v = p.string();
+    else if (f === 2) { v = p.dv.getFloat32(p.pos, true); p.pos += 4; }
+    else if (f === 3) { v = p.dv.getFloat64(p.pos, true); p.pos += 8; }
+    else if (f === 4) { v = p.varint(); if (v >= 9223372036854775808) v -= 18446744073709551616; }
+    else if (f === 5) v = p.varint();
+    else if (f === 6) { const u = p.varint(); v = (u % 2 === 1) ? -(u + 1) / 2 : u / 2; }
+    else if (f === 7) v = p.varint() !== 0;
+    else p.skip(wt);
+  }
+  return v;
+}
+function decodeTile(arrayBuffer) {
+  const u8 = new Uint8Array(arrayBuffer), p = new Pbf(u8), layers = {};
+  while (p.pos < u8.length) {
+    const tag = p.varint(), f = Math.floor(tag / 8), wt = tag & 7;
+    if (f === 3 && wt === 2) {
+      const len = p.varint(), end = p.pos + len;
+      const L = { name: '', extent: 4096, keys: [], values: [], ranges: [], u8, _feats: null };
+      while (p.pos < end) {
+        const t2 = p.varint(), f2 = Math.floor(t2 / 8), w2 = t2 & 7;
+        if (f2 === 1) L.name = p.string();
+        else if (f2 === 2) { const l = p.varint(); L.ranges.push(p.pos, p.pos + l); p.pos += l; }
+        else if (f2 === 3) L.keys.push(p.string());
+        else if (f2 === 4) { const l = p.varint(); L.values.push(readMvtValue(p, p.pos + l)); }
+        else if (f2 === 5) L.extent = p.varint();
+        else p.skip(w2);
+      }
+      p.pos = end;
+      layers[L.name] = L;
+    } else p.skip(wt);
+  }
+  return layers;
+}
+function layerFeatures(L) {
+  if (L._feats) return L._feats;
+  const p = new Pbf(L.u8), out = [];
+  for (let r = 0; r < L.ranges.length; r += 2) {
+    p.pos = L.ranges[r]; const end = L.ranges[r + 1];
+    let type = 0, tags = null, g0 = 0, g1 = 0, id = null;
+    while (p.pos < end) {
+      const tag = p.varint(), f = Math.floor(tag / 8), wt = tag & 7;
+      if (f === 1) id = p.varint();
+      else if (f === 2) { const l = p.varint(), e2 = p.pos + l; tags = []; while (p.pos < e2) tags.push(p.varint()); }
+      else if (f === 3) type = p.varint();
+      else if (f === 4) { const l = p.varint(); g0 = p.pos; g1 = p.pos + l; p.pos = g1; }
+      else p.skip(wt);
+    }
+    const props = {};
+    if (tags) for (let i = 0; i + 1 < tags.length; i += 2) props[L.keys[tags[i]]] = L.values[tags[i + 1]];
+    p.pos = g0;
+    const parts = [];
+    let cur = null, x = 0, y = 0, cmd = 0, cnt = 0;
+    while (p.pos < g1) {
+      if (cnt <= 0) { const ci = p.varint(); cmd = ci & 7; cnt = Math.floor(ci / 8); if (cnt === 0) continue; }
+      cnt--;
+      if (cmd === 1 || cmd === 2) {
+        const dx = p.varint(), dy = p.varint();
+        x += (dx % 2 === 1) ? -(dx + 1) / 2 : dx / 2;
+        y += (dy % 2 === 1) ? -(dy + 1) / 2 : dy / 2;
+        if (cmd === 1) { if (type === 1) parts.push([x, y]); else { cur = [x, y]; parts.push(cur); } }
+        else if (cur) cur.push(x, y);
+      }
+    }
+    out.push({ id, type, props, parts, ext: L.extent, ln: L.name });
+  }
+  L._feats = out;
+  return out;
+}
+class TileStore {
+  constructor(archive, max = 360) { this.archive = archive; this.cache = new Map(); this.inflight = new Map(); this.max = max; }
+  get(z, x, y) {
+    const key = z + '/' + x + '/' + y;
+    if (this.cache.has(key)) { const v = this.cache.get(key); this.cache.delete(key); this.cache.set(key, v); return Promise.resolve(v); }
+    if (this.inflight.has(key)) return this.inflight.get(key);
+    const pr = this.archive.getTileBytes(z, x, y).then(buf => {
+      const v = buf && buf.byteLength ? decodeTile(buf) : null;
+      this.cache.set(key, v);
+      while (this.cache.size > this.max) this.cache.delete(this.cache.keys().next().value);
+      this.inflight.delete(key);
+      return v;
+    }, err => { this.inflight.delete(key); throw err; });
+    this.inflight.set(key, pr);
+    return pr;
+  }
+}
+
+/* ============================================================
+ * 屬性工具
+ * ============================================================ */
+function pget(props, key) {
+  if (!props) return undefined;
+  if (key in props) return props[key];
+  const k = key.toLowerCase();
+  for (const kk in props) if (kk.toLowerCase() === k) return props[kk];
+  return undefined;
+}
+function pfirst(props, keys) { for (const k of keys) { const v = pget(props, k); if (v !== undefined && v !== null && v !== '') return v; } return undefined; }
+const ELEV_FIELDS = ['zv2', 'zv', 'elev', 'elevation', 'ele', 'hgt', 'height', 'z'];
+const NAME_FIELDS = ['bnm', 'tnm', 'nam', 'name', '名稱', 'textstring'];
+const LABEL_FIELD = { BuildP: 'bnm', TransP: 'tnm' };
+function numOrNull(v) { const n = typeof v === 'number' ? v : parseFloat(v); return Number.isFinite(n) ? n : null; }
+
+/* ============================================================
+ * 符號（依《經建版地形圖 112 年版圖示規格》繪製，單位 s ≈ 1 螢幕像素）
+ * ============================================================ */
+const FONT_STACK = '"Noto Sans TC","Microsoft JhengHei","PingFang TC","Heiti TC",sans-serif';
+function gs(g) { const v = Math.max(0, Math.min(255, Math.round(g))); return `rgb(${v},${v},${v})`; }
+function pl(c, pts) { c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.stroke(); }
+function circ(c, x, y, r, fill) { c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); if (fill) c.fill(); else c.stroke(); }
+function haloText(c, text, x, y, size, color, align = 'center', baseline = 'middle', angle = 0, font = FONT_STACK, weight = 500) {
+  c.save();
+  c.translate(x, y); if (angle) c.rotate(angle);
+  c.font = `${weight} ${size}px ${font}`; c.textAlign = align; c.textBaseline = baseline;
+  c.lineJoin = 'round'; c.lineWidth = Math.max(1, size * 0.3); c.strokeStyle = '#fff';
+  c.strokeText(text, 0, 0); c.fillStyle = color; c.fillText(text, 0, 0);
+  c.restore();
+}
+const SYMBOLS = {
+  generic(c, x, y, s) { c.save(); c.fillStyle = '#fff'; circ(c, x, y, 2.2 * s, true); c.restore(); c.lineWidth = s; circ(c, x, y, 2.2 * s); },
+  dot(c, x, y, s) { circ(c, x, y, 2.4 * s, true); },                     // 實心黑點（註記階段「其他」）
+  house(c, x, y, s) { c.fillRect(x - 2 * s, y - 2 * s, 4 * s, 4 * s); },
+  elev(c, x, y, s) { c.lineWidth = 1.1 * s; pl(c, [x - 2.2 * s, y - 2.2 * s, x + 2.2 * s, y + 2.2 * s]); pl(c, [x + 2.2 * s, y - 2.2 * s, x - 2.2 * s, y + 2.2 * s]); },
+  temple(c, x, y, s) {             // 卍：上臂向左、右臂向上、下臂向右、左臂向下
+    const h = 3.6 * s; c.lineWidth = 1.15 * s; c.lineCap = 'square';
+    pl(c, [x - h, y - h, x, y - h, x, y + h, x + h, y + h]);
+    pl(c, [x + h, y - h, x + h, y, x - h, y, x - h, y + h]);
+  },
+  school(c, x, y, s) { c.lineWidth = 1.3 * s; pl(c, [x - 1.5 * s, y + 4.2 * s, x - 1.5 * s, y - 4.2 * s]); c.beginPath(); c.moveTo(x - 1.5 * s, y - 4.2 * s); c.lineTo(x + 3.6 * s, y - 2.2 * s); c.lineTo(x - 1.5 * s, y - 0.2 * s); c.closePath(); c.fill(); },
+  police(c, x, y, s) { c.lineWidth = 1.1 * s; circ(c, x, y, 2.6 * s); pl(c, [x - 2.8 * s, y - 4.2 * s, x + 2.8 * s, y + 4.2 * s]); pl(c, [x + 2.8 * s, y - 4.2 * s, x - 2.8 * s, y + 4.2 * s]); },
+  fire(c, x, y, s) { c.lineWidth = 1.2 * s; c.beginPath(); c.arc(x, y - 3.6 * s, 3.2 * s, 0, Math.PI); c.stroke(); pl(c, [x, y - 0.4 * s, x, y + 3.6 * s]); pl(c, [x - 3 * s, y + 3.6 * s, x + 3 * s, y + 3.6 * s]); },
+  hospital(c, x, y, s) { c.lineWidth = 1.1 * s; c.beginPath(); c.moveTo(x - 3 * s, y - 3.8 * s); c.lineTo(x + 3 * s, y - 3.8 * s); c.lineTo(x + 3 * s, y + 0.8 * s); c.lineTo(x, y + 4.2 * s); c.lineTo(x - 3 * s, y + 0.8 * s); c.closePath(); c.stroke(); pl(c, [x, y - 3.8 * s, x, y + 0.8 * s]); pl(c, [x - 3 * s, y - 1.5 * s, x + 3 * s, y - 1.5 * s]); },
+  clinic(c, x, y, s) { c.lineWidth = 1.1 * s; c.beginPath(); c.moveTo(x - 3.6 * s, y - 3.2 * s); c.lineTo(x + 3.6 * s, y - 3.2 * s); c.lineTo(x, y + 4.2 * s); c.closePath(); c.stroke(); pl(c, [x, y - 2.6 * s, x, y + 0.6 * s]); pl(c, [x - 1.6 * s, y - 1 * s, x + 1.6 * s, y - 1 * s]); },
+  post(c, x, y, s) { c.lineWidth = 1.1 * s; c.strokeRect(x - 3.8 * s, y - 2.6 * s, 7.6 * s, 5.2 * s); pl(c, [x - 3.8 * s, y - 2.6 * s, x, y + 0.6 * s, x + 3.8 * s, y - 2.6 * s]); },
+  cemetery(c, x, y, s) { c.lineWidth = 1.3 * s; pl(c, [x, y - 4 * s, x, y + 2.8 * s]); pl(c, [x - 3.2 * s, y + 2.8 * s, x + 3.2 * s, y + 2.8 * s]); },
+  shrine(c, x, y, s) { c.lineWidth = 1.1 * s; pl(c, [x - 1.6 * s, y - 3.6 * s, x + 1.6 * s, y - 3.6 * s]); pl(c, [x - 3.2 * s, y - 1.6 * s, x + 3.2 * s, y - 1.6 * s]); pl(c, [x, y - 1.6 * s, x, y + 4 * s]); circ(c, x - 2.3 * s, y + 1.4 * s, 0.75 * s, true); circ(c, x + 2.3 * s, y + 1.4 * s, 0.75 * s, true); },
+  church(c, x, y, s) { c.lineWidth = 1.2 * s; pl(c, [x, y - 4.4 * s, x, y + 4.4 * s]); pl(c, [x - 2.6 * s, y - 1.8 * s, x + 2.6 * s, y - 1.8 * s]); },
+  monument(c, x, y, s) { c.lineWidth = 1 * s; pl(c, [x - 2.4 * s, y + 3.6 * s, x, y - 4.4 * s, x + 2.4 * s, y + 3.6 * s]); pl(c, [x - 3.6 * s, y + 3.6 * s, x + 3.6 * s, y + 3.6 * s]); pl(c, [x - 1.3 * s, y, x + 1.3 * s, y]); },
+  memorial(c, x, y, s) { c.lineWidth = 1.1 * s; pl(c, [x, y - 4.6 * s, x, y - 2.6 * s]); c.beginPath(); c.moveTo(x - 2.2 * s, y + 3.6 * s); c.lineTo(x - 2.2 * s, y - 0.4 * s); c.arc(x, y - 0.4 * s, 2.2 * s, Math.PI, 0); c.lineTo(x + 2.2 * s, y + 3.6 * s); c.stroke(); pl(c, [x - 3.4 * s, y + 3.6 * s, x + 3.4 * s, y + 3.6 * s]); },
+  power(c, x, y, s) { c.lineWidth = 1.1 * s; c.beginPath(); c.moveTo(x, y - 3.4 * s); c.lineTo(x + 3.4 * s, y); c.lineTo(x, y + 3.4 * s); c.lineTo(x - 3.4 * s, y); c.closePath(); c.fill(); c.save(); c.fillStyle = '#fff'; circ(c, x, y, 1.6 * s, true); c.restore(); pl(c, [x - 3.4 * s, y, x - 5.6 * s, y, x - 5.6 * s, y + 2 * s]); pl(c, [x + 3.4 * s, y, x + 5.6 * s, y, x + 5.6 * s, y - 2 * s]); },
+  substation(c, x, y, s) { c.lineWidth = 1.1 * s; circ(c, x, y, 2.4 * s); pl(c, [x - 2.4 * s, y, x - 5.2 * s, y, x - 5.2 * s, y + 2 * s]); pl(c, [x + 2.4 * s, y, x + 5.2 * s, y, x + 5.2 * s, y - 2 * s]); },
+  water(c, x, y, s) { c.lineWidth = 1.1 * s; circ(c, x, y - 1.6 * s, 2.4 * s); pl(c, [x, y - 4.4 * s, x, y + 4 * s]); pl(c, [x - 2.6 * s, y + 4 * s, x + 2.6 * s, y + 4 * s]); },
+  factory(c, x, y, s) { c.lineWidth = 1.1 * s; circ(c, x, y, 3.4 * s); pl(c, [x - 3.4 * s, y, x + 3.4 * s, y]); pl(c, [x - 1.6 * s, y - 1.8 * s, x + 1.6 * s, y - 1.8 * s]); pl(c, [x, y - 1.8 * s, x, y + 1.8 * s]); pl(c, [x - 1.6 * s, y + 1.8 * s, x + 1.6 * s, y + 1.8 * s]); },
+  mine(c, x, y, s) { c.lineWidth = 1.2 * s; pl(c, [x - 3.4 * s, y + 3.6 * s, x + 2.6 * s, y - 2.4 * s]); pl(c, [x + 3.4 * s, y + 3.6 * s, x - 2.6 * s, y - 2.4 * s]); c.beginPath(); c.arc(x + 2.6 * s, y - 2.4 * s, 2 * s, Math.PI * 0.6, Math.PI * 1.9); c.stroke(); c.beginPath(); c.arc(x - 2.6 * s, y - 2.4 * s, 2 * s, Math.PI * 1.1, Math.PI * 2.4); c.stroke(); },
+  radio(c, x, y, s) { c.lineWidth = 1.1 * s; circ(c, x - 1 * s, y + 2.6 * s, 1.6 * s); pl(c, [x - 1 * s, y + 1 * s, x - 1 * s, y - 4 * s]); pl(c, [x - 1 * s, y - 4 * s, x, y - 2.4 * s, x + 1 * s, y - 4 * s, x + 2 * s, y - 2.4 * s, x + 3 * s, y - 4 * s]); },
+  weather(c, x, y, s) { c.lineWidth = 1.2 * s; pl(c, [x, y - 3 * s, x, y + 4 * s]); pl(c, [x - 3 * s, y - 3 * s, x + 3 * s, y - 3 * s]); circ(c, x - 3 * s, y - 3 * s, 1.1 * s, true); circ(c, x + 3 * s, y - 3 * s, 1.1 * s, true); },
+  airport(c, x, y, s) { c.lineWidth = 1.1 * s; pl(c, [x - 4.2 * s, y, x + 4.2 * s, y]); pl(c, [x - 1.6 * s, y - 3.6 * s, x - 1.6 * s, y + 3.6 * s]); pl(c, [x + 4.2 * s, y - 1.8 * s, x + 4.2 * s, y + 1.8 * s]); },
+  historic(c, x, y, s) { circ(c, x, y - 2.4 * s, 0.95 * s, true); circ(c, x - 2.6 * s, y + 1.8 * s, 0.95 * s, true); circ(c, x + 2.6 * s, y + 1.8 * s, 0.95 * s, true); },
+  prison(c, x, y, s) { c.lineWidth = 1.1 * s; const h = 2.8 * s, b = 1.4 * s; pl(c, [x - h, y - h, x + h, y + h]); pl(c, [x + h, y - h, x - h, y + h]); for (const [px, py] of [[x - h, y - h], [x + h, y - h], [x - h, y + h], [x + h, y + h]]) { pl(c, [px - b, py, px + b, py]); } },
+  port(c, x, y, s) { c.lineWidth = 1.1 * s; circ(c, x, y - 3.8 * s, 1 * s); pl(c, [x, y - 2.8 * s, x, y + 3.6 * s]); pl(c, [x - 2 * s, y - 1.2 * s, x + 2 * s, y - 1.2 * s]); c.beginPath(); c.arc(x, y + 0.6 * s, 3 * s, Math.PI * 0.1, Math.PI * 0.9); c.stroke(); },
+  fishport(c, x, y, s) { c.lineWidth = 1.1 * s; circ(c, x, y - 3.8 * s, 1 * s); pl(c, [x, y - 2.8 * s, x, y + 3.6 * s]); c.beginPath(); c.arc(x, y + 0.6 * s, 3 * s, Math.PI * 0.1, Math.PI * 0.9); c.stroke(); },
+  lighthouse(c, x, y, s) { const r = 3.8 * s; c.beginPath(); for (const ang of [0, 120, 240]) { const a = (ang - 90) * Math.PI / 180; c.lineTo(x + r * Math.cos(a), y + r * Math.sin(a)); } c.closePath(); c.fill(); c.beginPath(); for (const ang of [60, 180, 300]) { const a = (ang - 90) * Math.PI / 180; c.lineTo(x + r * Math.cos(a), y + r * Math.sin(a)); } c.closePath(); c.fill(); c.save(); c.fillStyle = '#fff'; circ(c, x, y, 1.6 * s, true); c.restore(); circ(c, x, y, 0.7 * s, true); },
+  gas(c, x, y, s) { c.lineWidth = 1.1 * s; c.strokeRect(x - 2 * s, y - 4.2 * s, 4 * s, 4.6 * s); pl(c, [x, y + 0.4 * s, x, y + 3.6 * s]); pl(c, [x - 2.2 * s, y + 3.6 * s, x + 2.2 * s, y + 3.6 * s]); },
+  activity(c, x, y, s) { c.lineWidth = 1 * s; circ(c, x, y, 4.4 * s); c.font = `700 ${5.6 * s}px ${FONT_STACK}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('活', x, y + 0.3 * s); },
+  govCity(c, x, y, s) { c.lineWidth = 0.9 * s; circ(c, x, y, 4.2 * s); circ(c, x, y, 2.9 * s); circ(c, x, y, 1.6 * s); },
+  govCounty(c, x, y, s) { c.lineWidth = 1.2 * s; circ(c, x, y, 4 * s); circ(c, x, y, 2.2 * s); },
+  townOffice(c, x, y, s) { c.lineWidth = 1 * s; circ(c, x, y, 4 * s); circ(c, x, y, 2.4 * s, true); },
+  station(c, x, y, s) { c.fillRect(x - 3.2 * s, y - 1.6 * s, 6.4 * s, 3.2 * s); },
+};
+const SYMBOL_LABELS = {
+  temple: '寺廟', church: '教堂', shrine: '祠堂', school: '學校', govCity: '直轄市政府', govCounty: '縣（市）政府',
+  townOffice: '鄉（鎮、市、區）公所', police: '警察機關', fire: '消防局', hospital: '醫院', clinic: '衛生所', post: '郵局',
+  activity: '活動中心', cemetery: '墓地', monument: '紀念碑、紀念塔', memorial: '紀念性場所', historic: '古蹟',
+  power: '發電廠', substation: '變電所', water: '水廠', factory: '工廠', mine: '礦場', radio: '電臺', weather: '氣象站',
+  airport: '機場', prison: '監獄', port: '商港、工礦港', fishport: '漁港', lighthouse: '燈塔', gas: '加油站',
+  station: '車站', elev: '獨立標高點', house: '獨立房屋', generic: '其他（小圓圈，白心）', dot: '其他（實心圓，全黑）',
+};
+// 依名稱（BuildP: bnm、TransP: tnm）判斷符號，由上而下比對，先符合者採用。
+// sub：限定 BuildP 的 FCsubtype（1 政府及民意機構、2 文教、3 生活、4 宗教、5 工礦、6 通訊及傳播、7 其他），避免「禮堂」「廠商」之類誤判
+const NAME_RULES = [
+  { re: /加油站/, sym: 'gas' }, { re: /燈塔/, sym: 'lighthouse' }, { re: /漁港/, sym: 'fishport' },
+  { re: /(商港|工業港|港務|碼頭)/, sym: 'port' }, { re: /(機場|航空站)/, sym: 'airport' },
+  { re: /(車站|火車站|捷運站|高鐵站|轉運站|客運站|乘降場|招呼站)$|車站/, sym: 'station' },
+  { re: /(監獄|看守所|戒治所|輔育院)/, sym: 'prison' }, { re: /(氣象站|測候所|氣象臺|氣象台)/, sym: 'weather' },
+  { re: /(電臺|電台|廣播|轉播站)/, sym: 'radio' }, { re: /(發電廠|電廠|發電所)/, sym: 'power' },
+  { re: /(變電所|變電站|開閉所)/, sym: 'substation' }, { re: /(淨水場|淨水廠|給水廠|自來水|水廠)/, sym: 'water' },
+  { re: /礦/, sym: 'mine', sub: [5, 7] }, { re: /消防/, sym: 'fire' },
+  { re: /(派出所|分駐所|警察|警局|警分局)/, sym: 'police' }, { re: /分局$/, sym: 'police', sub: [1] },
+  { re: /衛生所/, sym: 'clinic' }, { re: /醫院/, sym: 'hospital' }, { re: /(郵局|郵政)/, sym: 'post' },
+  { re: /(臺北|台北|新北|桃園|臺中|台中|臺南|台南|高雄)市政府/, sym: 'govCity' }, { re: /(縣政府|市政府)/, sym: 'govCounty' },
+  { re: /公所/, sym: 'townOffice' }, { re: /(活動中心|集會所|社區中心)/, sym: 'activity' },
+  { re: /(紀念碑|紀念塔)/, sym: 'monument' }, { re: /碑$/, sym: 'monument' }, { re: /(紀念館|紀念堂)/, sym: 'memorial' },
+  { re: /(古蹟|遺址|砲臺|砲台)/, sym: 'historic' }, { re: /(公墓|墓園|納骨塔|靈骨塔|墓)/, sym: 'cemetery' },
+  { re: /(教會|天主堂|基督|禮拜堂|聖母|教堂|福音|浸信會|真理堂|聚會所|召會|循理會|貴格會)/, sym: 'church' }, { re: /(宗祠|家廟|祠堂|祠)/, sym: 'shrine' },
+  { re: /(國小|國中|高中|高職|大學|學院|學校|中學|小學|分校|分班|幼兒園)/, sym: 'school' },
+  { re: /(工廠|廠)$|工廠/, sym: 'factory', sub: [5, 7] },
+  { re: /(寺|宮|廟|壇|巖|殿|禪|精舍|佛|庵)/, sym: 'temple' }, { re: /堂$/, sym: 'temple', sub: [4] },
+];
+function resolveSymbol(def, props) {
+  if (def.sym) return def.sym;
+  const rule = def.rules && CONFIG.POINT_CODE_RULES[def.rules];
+  if (rule && rule.field && rule.map) {
+    const v = pget(props, rule.field);
+    if (v !== undefined && rule.map[v] && SYMBOLS[rule.map[v]]) return rule.map[v];
+  }
+  const name = pfirst(props, NAME_FIELDS);
+  if (name) {
+    const s = String(name), sub = def.id === 'BuildP' ? numOrNull(pget(props, 'FCsubtype')) : null;
+    for (const r of NAME_RULES) {
+      if (r.sub && sub !== null && !r.sub.includes(sub)) continue;
+      if (r.re.test(s)) return r.sym;
+    }
+  }
+  return def.fallback || 'generic';
+}
+
+/* ---------- 線、面繪製工具 ---------- */
+function addFeat(c, f, T, close) {
+  const s = T.ts / f.ext;
+  for (const p of f.parts) {
+    if (p.length < 4) continue;
+    c.moveTo(T.tx + p[0] * s, T.ty + p[1] * s);
+    for (let i = 2; i < p.length; i += 2) c.lineTo(T.tx + p[i] * s, T.ty + p[i + 1] * s);
+    if (close) c.closePath();
+  }
+}
+function strokeLines(c, F, e, w, color, dash, cap = 'round') {
+  c.beginPath(); for (const f of F) addFeat(c, f, e.T, false);
+  c.lineWidth = w; c.strokeStyle = color; c.lineCap = cap; c.lineJoin = 'round';
+  c.setLineDash(dash ? dash.map(d => d * e.k) : []); c.stroke(); c.setLineDash([]);
+}
+/** 圖樣填滿：先鋪不透明白底，下方的圖層與底圖不會從符號間透出 */
+function fillPattern(c, F, e, name) { fillPolys(c, F, e, '#fff'); fillPolys(c, F, e, patternStyle(c, name, e)); }
+function fillPolys(c, F, e, style) { c.fillStyle = style; for (const f of F) { c.beginPath(); addFeat(c, f, e.T, true); c.fill('evenodd'); } }
+function strokePolys(c, F, e, w, color, dash) {
+  c.beginPath(); for (const f of F) addFeat(c, f, e.T, true);
+  c.lineWidth = w; c.strokeStyle = color; c.lineJoin = 'round'; c.setLineDash(dash ? dash.map(d => d * e.k) : []); c.stroke(); c.setLineDash([]);
+}
+function screenParts(F, T, cb) {
+  for (const f of F) {
+    const s = T.ts / f.ext;
+    for (const p of f.parts) {
+      if (p.length < 4) continue;
+      const a = new Float64Array(p.length);
+      for (let i = 0; i < p.length; i += 2) { a[i] = T.tx + p[i] * s; a[i + 1] = T.ty + p[i + 1] * s; }
+      cb(a);
+    }
+  }
+}
+function ticksAlong(c, F, e, spacing, len, both, w, color) {
+  c.beginPath();
+  screenParts(F, e.T, a => {
+    let d = spacing / 2;
+    for (let i = 2; i < a.length; i += 2) {
+      const x0 = a[i - 2], y0 = a[i - 1], dx = a[i] - x0, dy = a[i + 1] - y0, L = Math.hypot(dx, dy);
+      if (!L) continue;
+      const ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+      while (d <= L) {
+        const px = x0 + ux * d, py = y0 + uy * d;
+        if (both) c.moveTo(px - nx * len, py - ny * len); else c.moveTo(px, py);
+        c.lineTo(px + nx * len, py + ny * len);
+        d += spacing;
+      }
+      d -= L;
+    }
+  });
+  c.lineWidth = w; c.strokeStyle = color; c.lineCap = 'butt'; c.stroke();
+}
+function endFlares(c, F, e, half, len, w, color) {
+  c.beginPath();
+  screenParts(F, e.T, a => {
+    const n = a.length;
+    for (const [ex, ey, ix, iy] of [[a[0], a[1], a[2], a[3]], [a[n - 2], a[n - 1], a[n - 4], a[n - 3]]]) {
+      const L = Math.hypot(ex - ix, ey - iy); if (!L) continue;
+      const ox = (ex - ix) / L, oy = (ey - iy) / L, nx = -oy, ny = ox;
+      for (const sd of [1, -1]) {
+        const sx = ex + nx * half * sd, sy = ey + ny * half * sd;
+        c.moveTo(sx, sy); c.lineTo(sx + (ox + nx * sd) * len * 0.75, sy + (oy + ny * sd) * len * 0.75);
+      }
+    }
+  });
+  c.lineWidth = w; c.strokeStyle = color; c.lineCap = 'round'; c.stroke();
+}
+
+/* ---------- 面狀符號的填滿圖樣 ---------- */
+function mod(a, n) { return ((a % n) + n) % n; }
+const PATTERNS = {
+  paddy: { cell: 24, draw(c, u) { for (const [x, y] of [[6, 7], [18, 19]]) { c.beginPath();
+    c.moveTo((x - 2.6) * u, (y + 0.8) * u); c.lineTo((x + 2.6) * u, (y + 0.8) * u);
+    c.moveTo((x - 1.3) * u, (y + 0.8) * u); c.lineTo((x - 1.3) * u, (y - 2.2) * u);
+    c.moveTo((x + 1.3) * u, (y + 0.8) * u); c.lineTo((x + 1.3) * u, (y - 2.2) * u);
+    c.moveTo((x - 3.4) * u, (y + 2.7) * u); c.lineTo((x + 3.4) * u, (y + 2.7) * u); c.stroke(); } } },
+  dry: { cell: 24, draw(c, u) { for (const [x, y] of [[6, 7], [18, 19]]) { c.beginPath();
+    c.moveTo((x - 2.6) * u, (y + 1.6) * u); c.lineTo((x + 2.6) * u, (y + 1.6) * u);
+    c.moveTo((x - 1.3) * u, (y + 1.6) * u); c.lineTo((x - 1.3) * u, (y - 1.6) * u);
+    c.moveTo((x + 1.3) * u, (y + 1.6) * u); c.lineTo((x + 1.3) * u, (y - 1.6) * u); c.stroke(); } } },
+  orchard: { cell: 16, draw(c, u) { for (const [x, y] of [[4, 4.5], [12, 12.5]]) { c.beginPath(); c.arc(x * u, (y + 0.8) * u, 1.4 * u, 0, Math.PI * 2);
+    c.moveTo(x * u, (y - 0.6) * u); c.lineTo(x * u, (y - 2.6) * u); c.stroke(); } } },
+  tea: { cell: 24, draw(c, u) { const caret = (cx, cy) => { c.moveTo((cx - 1.4) * u, (cy + 1) * u); c.lineTo(cx * u, (cy - 0.9) * u); c.lineTo((cx + 1.4) * u, (cy + 1) * u); };
+    for (const [x, y] of [[6, 7], [18, 19]]) { c.beginPath(); caret(x, y - 1.6); caret(x - 1.8, y + 1.4); caret(x + 1.8, y + 1.4); c.stroke(); } } },
+  cane: { cell: 24, draw(c, u) { for (const [x, y] of [[6, 7], [18, 19]]) { c.beginPath();
+    c.moveTo(x * u, (y + 3) * u); c.lineTo(x * u, (y - 3) * u);
+    c.moveTo(x * u, (y + 0.4) * u); c.lineTo((x - 2.2) * u, (y - 1.8) * u);
+    c.moveTo(x * u, (y - 0.8) * u); c.lineTo((x + 2.2) * u, (y - 3) * u); c.stroke(); } } },
+  landslide: { cell: 18, draw(c, u) { const pts = [[2, 3], [7, 1.5], [12, 4], [16, 2], [4, 8], [9.5, 7.5], [14.5, 9], [1.5, 13], [6.5, 12.5], [11, 13.5], [16, 14], [4, 17], [9, 16.6], [13.5, 17.2]];
+    for (const [x, y] of pts) { c.beginPath(); c.arc(x * u, y * u, 0.75 * u, 0, Math.PI * 2); c.fill(); } } },
+  marine: { cell: 12, draw(c, u) { c.beginPath(); c.moveTo(1 * u, 3 * u); c.lineTo(7 * u, 3 * u); c.moveTo(7 * u, 9 * u); c.lineTo(12 * u, 9 * u); c.moveTo(0, 9 * u); c.lineTo(1 * u, 9 * u); c.stroke(); } },
+};
+const _patCache = new Map();
+function patternStyle(c, name, e) {
+  const P = PATTERNS[name], g = Math.round(e.g), key = name + '|' + g + '|' + e.k.toFixed(3);
+  let entry = _patCache.get(key);
+  if (!entry) {
+    const cell = Math.max(4, Math.round(P.cell * e.k)), u = cell / P.cell;
+    const cv = document.createElement('canvas'); cv.width = cv.height = cell;
+    const pc = cv.getContext('2d'); pc.strokeStyle = pc.fillStyle = gs(g); pc.lineWidth = Math.max(0.6, 0.9 * u); pc.lineCap = 'round'; pc.lineJoin = 'round';
+    P.draw(pc, u);
+    entry = { cv, cell };
+    _patCache.set(key, entry);
+    if (_patCache.size > 200) _patCache.delete(_patCache.keys().next().value);
+  }
+  const pat = c.createPattern(entry.cv, 'repeat');
+  pat.setTransform(new DOMMatrix([1, 0, 0, 1, mod(e.pat.x, entry.cell), mod(e.pat.y, entry.cell)]));
+  return pat;
+}
+
+/* ============================================================
+ * 圖層定義（id 對應 pmtiles 中的圖層名稱）
+ * ============================================================ */
+const contourDraw = w => function (c, F, e) { strokeLines(c, F, e, w * e.k, gs(e.g)); };
+const LAYER_DEFS = [
+  // 點
+  { id: 'ElevP', group: 'point', label: '獨立標高點', src: ['ElevP'], gray: 0, kind: 'point', sym: 'elev', numLabel: true },
+  { id: 'BuildP', group: 'point', label: '建物符號（寺廟、學校…）', src: ['BuildP'], gray: 0, kind: 'point', rules: 'BuildP', fallback: 'house' },
+  { id: 'TransP', group: 'point', label: '交通設施（車站…）', src: ['TransP'], gray: 0, kind: 'point', rules: 'TransP', fallback: 'generic' },
+  // 線
+  { id: 'SeastrtL', group: 'line', label: '防波堤', src: ['SeastrtL'], gray: 20, draw(c, F, e) { strokeLines(c, F, e, 2.4 * e.k, gs(e.g), null, 'butt'); } },
+  { id: 'DamL', group: 'line', label: '水壩', src: ['DamL'], gray: 0, draw(c, F, e) { strokeLines(c, F, e, 3.2 * e.k, gs(e.g), null, 'butt'); } },
+  { id: 'RailrdL', group: 'line', label: '鐵路', src: ['RailrdL'], gray: 0, draw(c, F, e) { const col = gs(e.g); strokeLines(c, F, e, 1.4 * e.k, col); ticksAlong(c, F, e, 12 * e.k, 2.6 * e.k, true, 1.2 * e.k, col); } },
+  { id: 'HSRrdL', group: 'line', label: '高速鐵路', src: ['HSRrdL'], gray: 70, draw(c, F, e) { strokeLines(c, F, e, 4.6 * e.k, '#000', null, 'butt'); strokeLines(c, F, e, 3 * e.k, '#fff', null, 'butt'); strokeLines(c, F, e, 3 * e.k, gs(e.g), [7, 7], 'butt'); } },
+  { id: 'MRTrdL', group: 'line', label: '捷運', src: ['MRTrdL'], gray: 0, draw(c, F, e) { strokeLines(c, F, e, 3.2 * e.k, gs(e.g), null, 'butt'); strokeLines(c, F, e, 1 * e.k, '#fff', null, 'butt'); } },
+  { id: 'BridgeL', group: 'line', label: '橋梁', src: ['BridgeL'], gray: 0, draw(c, F, e) { const col = gs(e.g); strokeLines(c, F, e, 5.2 * e.k, col, null, 'butt'); strokeLines(c, F, e, 3.2 * e.k, '#fff', null, 'butt'); endFlares(c, F, e, 2.6 * e.k, 3 * e.k, 1 * e.k, col); } },
+  { id: 'RoadL_use1', group: 'line', label: '國道', src: ['RoadL_use1'], gray: 150, draw(c, F, e) { strokeLines(c, F, e, 6.6 * e.k, '#000'); strokeLines(c, F, e, 4.8 * e.k, gs(e.g)); strokeLines(c, F, e, 0.8 * e.k, '#000'); } },
+  { id: 'RoadL_use2', group: 'line', label: '省道、快速公路', src: ['RoadL_use2'], gray: 185, draw(c, F, e) { strokeLines(c, F, e, 4.8 * e.k, '#000'); strokeLines(c, F, e, 3 * e.k, gs(e.g)); } },
+  { id: 'RoadL_use3', group: 'line', label: '縣（市）道', src: ['RoadL_use3'], gray: 185, draw(c, F, e) { strokeLines(c, F, e, 3.4 * e.k, '#000'); strokeLines(c, F, e, 1.8 * e.k, gs(e.g)); } },
+  { id: 'TunnelL', group: 'line', label: '隧道', src: ['TunnelL'], gray: 0, draw(c, F, e) { strokeLines(c, F, e, 4.4 * e.k, gs(e.g), [5, 3.5], 'butt'); strokeLines(c, F, e, 2.4 * e.k, '#fff', [5, 3.5], 'butt'); } },
+  { id: 'WatrcrsL', group: 'line', label: '河流（單線水）', src: ['WatrcrsL'], gray: 70, draw(c, F, e) { strokeLines(c, F, e, 1.1 * e.k, gs(e.g)); } },
+  { id: 'CoastL', group: 'line', label: '海岸線', src: ['CoastL'], gray: 0, draw(c, F, e) { strokeLines(c, F, e, 1.2 * e.k, gs(e.g)); } },
+  { id: 'EmbankL', group: 'line', label: '堤防', src: ['EmbankL'], gray: 40, draw(c, F, e) { const col = gs(e.g); strokeLines(c, F, e, 1.2 * e.k, col); ticksAlong(c, F, e, 4.5 * e.k, 3 * e.k, false, 0.9 * e.k, col); } },
+  { id: 'ContourL', group: 'line', label: '首曲線（全部等高線）', src: ['ContourL'], gray: 120, draw: contourDraw(0.6) },
+  { id: 'ContourL_zv50', group: 'line', label: '計曲線 50 m', src: ['ContourL_zv50'], gray: 50, draw: contourDraw(1.0) },
+  { id: 'ContourL_zv100', group: 'line', label: '計曲線 100 m', src: ['ContourL_zv100'], gray: 40, draw: contourDraw(1.1) },
+  { id: 'ContourL_zv200', group: 'line', label: '計曲線 200 m', src: ['ContourL_zv200'], gray: 30, draw: contourDraw(1.3) },
+  { id: 'ContourL_zv250', group: 'line', label: '計曲線 250 m', src: ['ContourL_zv250'], gray: 25, draw: contourDraw(1.4) },
+  { id: 'ContourL_zv500', group: 'line', label: '計曲線 500 m', src: ['ContourL_zv500'], gray: 15, draw: contourDraw(1.6) },
+  { id: 'ContourL_zv1000', group: 'line', label: '計曲線 1000 m', src: ['ContourL_zv1000'], gray: 0, draw: contourDraw(2) },
+  { id: 'Grid', group: 'line', label: '方格網（TM2，1 公里）', src: [], gray: 90, kind: 'grid', defaultOn: true },
+  // 面
+  { id: 'BuiltupA', group: 'polygon', label: '房屋區（建成區）', src: ['BuiltupA'], gray: 170, draw(c, F, e) { fillPolys(c, F, e, gs(e.g)); } },
+  { id: 'BuildA', group: 'polygon', label: '獨立房屋', src: ['BuildA'], gray: 50, draw(c, F, e) { fillPolys(c, F, e, gs(e.g)); } },
+  { id: 'waterbody', group: 'polygon', label: '水體（河川、湖泊、水庫、水池）', src: ['waterbody'], gray: 150, noFrame: true, draw(c, F, e) { fillPolys(c, F, e, gs(e.g)); } },
+  { id: 'CoastA', group: 'polygon', label: '海洋', src: ['CoastA'], gray: 150, noFrame: true, draw(c, F, e) { fillPolys(c, F, e, gs(e.g)); } },
+  { id: 'MarinelandA', group: 'polygon', label: '養殖池', src: ['MarinelandA'], gray: 90, draw(c, F, e) { fillPattern(c, F, e, 'marine'); strokePolys(c, F, e, 0.8 * e.k, gs(e.g)); } },
+  { id: 'LndfrmA_typ3', group: 'polygon', label: '崩土（崩塌地）', src: ['LndfrmA_typ3'], gray: 60, draw(c, F, e) { fillPattern(c, F, e, 'landslide'); strokePolys(c, F, e, 0.7 * e.k, gs(e.g), [2, 1.5]); } },
+  { id: 'OrchardA_csp41', group: 'polygon', label: '水田', src: ['OrchardA_csp41'], gray: 60, draw(c, F, e) { fillPattern(c, F, e, 'paddy'); } },
+  { id: 'OrchardA_csp51', group: 'polygon', label: '旱田', src: ['OrchardA_csp51'], gray: 60, draw(c, F, e) { fillPattern(c, F, e, 'dry'); } },
+  { id: 'OrchardA_csp21', group: 'polygon', label: '果園', src: ['OrchardA_csp21'], gray: 60, draw(c, F, e) { fillPattern(c, F, e, 'orchard'); } },
+  { id: 'OrchardA_csp31', group: 'polygon', label: '茶園（茶林）', src: ['OrchardA_csp31'], gray: 60, draw(c, F, e) { fillPattern(c, F, e, 'tea'); } },
+  { id: 'OrchardA_csp22', group: 'polygon', label: '蔗田（蔗園）', src: ['OrchardA_csp22'], gray: 60, draw(c, F, e) { fillPattern(c, F, e, 'cane'); } },
+  { id: 'VegA_sub0', group: 'polygon', label: '樹林', src: ['VegA_sub0'], gray: 228, draw(c, F, e) { fillPolys(c, F, e, gs(e.g)); } },
+];
+const DEF = Object.fromEntries(LAYER_DEFS.map(d => [d.id, d]));
+// 預設繪製順序（由下而上）：水體壓在等高線上，等高線在雙線河處中斷。使用者可在圖例拖曳調整。
+const DRAW_ORDER = ['CoastA', 'VegA_sub0', 'OrchardA_csp41', 'OrchardA_csp51', 'OrchardA_csp21', 'OrchardA_csp31', 'OrchardA_csp22',
+  'LndfrmA_typ3', 'BuiltupA', 'BuildA', 'ContourL', 'ContourL_zv50', 'ContourL_zv100', 'ContourL_zv200', 'ContourL_zv250', 'ContourL_zv500',
+  'ContourL_zv1000', 'waterbody', 'MarinelandA', 'WatrcrsL', 'CoastL', 'EmbankL', 'SeastrtL', 'DamL', 'RoadL_use3', 'RoadL_use2', 'RoadL_use1', 'TunnelL', 'BridgeL',
+  'RailrdL', 'MRTrdL', 'HSRrdL', 'ElevP', 'BuildP', 'TransP'];
+// 腳本產生、但本工具不以「註記」看待的向量圖層
+const KNOWN_VECTOR = new Set(['ElevP', 'BuildP', 'TransP', 'PolbndL_bta11', 'PolbndL_bta12', 'PolbndL_bta13', 'DamL', 'SeastrtL',
+  'HSRrdL', 'MRTrdL', 'BridgeL', 'RoadL_use1', 'RoadL_use2', 'RoadL_use3', 'TunnelL', 'EmbankL', 'ContourL', 'ContourL_zv50', 'ContourL_zv100', 'ContourL_zv200',
+  'ContourL_zv250', 'ContourL_zv500', 'ContourL_zv1000', 'RailrdL', 'WatrcrsL', 'CoastL', 'BuildA', 'BuiltupA', 'MarinelandA',
+  'SandbarA', 'SwampA', 'SaltpanA', 'CoastA', 'LndfrmA_typ3', 'OrchardA_csp21', 'OrchardA_csp22', 'OrchardA_csp31', 'OrchardA_csp41',
+  'OrchardA_csp51', 'VegA_sub0', 'VegA_sub1', 'VegA_sub2', 'waterbody']);
+
+function collectFeats(layers, src) {
+  let out = null;
+  for (const name of src) {
+    const L = layers[name]; if (!L) continue;
+    const fs = layerFeatures(L);
+    if (!fs.length) continue;
+    out = out ? out.concat(fs) : fs;
+  }
+  return out || [];
+}
+
+/* ============================================================
+ * 向量繪製主程式（螢幕與輸出共用）
+ * o = { tiles:[{x,y,layers}], dz（資料層級）, originX, originY（資料層級的全域像素）, scale（畫布像素／資料像素）,
+ *       sym（符號倍率）, enabled:Set, grays:{}, contourLabels:boolean, skipPoints:Set（已刪除的點）, order:[]（由下而上） }
+ * ============================================================ */
+function renderVector(ctx, o) {
+  const ts = 256 * o.scale;
+  const pat = { x: -o.originX * o.scale, y: -o.originY * o.scale };
+  for (const id of (o.order || DRAW_ORDER)) {
+    if (!o.enabled.has(id)) continue;
+    const def = DEF[id], g = o.grays[id] ?? def.gray;
+    for (const t of o.tiles) {
+      if (!t.layers) continue;
+      const F = collectFeats(t.layers, def.src);
+      if (!F.length) continue;
+      const T = { tx: (t.x * 256 - o.originX) * o.scale, ty: (t.y * 256 - o.originY) * o.scale, ts };
+      const e = { T, k: o.sym, g, pat, def, tile: t, o };
+      if (def.kind === 'point') { drawPoints(ctx, F, e); continue; }
+      ctx.save(); ctx.beginPath(); ctx.rect(T.tx, T.ty, ts, ts); ctx.clip();
+      def.draw(ctx, F, e);
+      ctx.restore();
+    }
+  }
+  if (o.contourLabels) drawContourLabels(ctx, o, ts);
+}
+/** 點圖徵的穩定識別碼（跨縮放層級不變），用於刪除個別的點 */
+function pointKey(f, tile, p, dz) {
+  const gid = pget(f.props, 'GlobalID');
+  if (gid !== undefined && gid !== null && gid !== '') return f.ln + ':' + gid;
+  if (f.id !== null && f.id !== undefined) return f.ln + '#' + f.id;
+  const [la, ln] = MERC.unproject(tile.x * 256 + p[0] / f.ext * 256, tile.y * 256 + p[1] / f.ext * 256, dz);
+  return f.ln + '@' + la.toFixed(5) + ',' + ln.toFixed(5);
+}
+function drawPoints(c, F, e) {
+  const col = gs(e.g), s = 1.15 * e.k, skip = e.o.skipPoints;
+  for (const f of F) {
+    const sc = e.T.ts / f.ext;
+    for (const p of f.parts) {
+      const gx = p[0], gy = p[1];
+      if (gx < 0 || gy < 0 || gx >= f.ext || gy >= f.ext) continue;   // 只畫本圖磚範圍內的點，避免重複
+      if (skip && skip.size && skip.has(pointKey(f, e.tile, p, e.o.dz))) continue;
+      const x = e.T.tx + gx * sc, y = e.T.ty + gy * sc;
+      c.save(); c.strokeStyle = col; c.fillStyle = col; c.lineCap = 'round'; c.lineJoin = 'round';
+      (SYMBOLS[resolveSymbol(e.def, f.props)] || SYMBOLS.generic)(c, x, y, s);
+      c.restore();
+      if (e.def.numLabel) {
+        const v = numOrNull(pfirst(f.props, ELEV_FIELDS));
+        if (v !== null) haloText(c, String(Math.round(v * 10) / 10), x + 3.4 * s, y, 9 * e.k, col, 'left', 'middle');
+      }
+    }
+  }
+}
+function drawContourLabels(c, o, ts) {
+  const id = ['ContourL_zv50', 'ContourL_zv100', 'ContourL_zv200', 'ContourL_zv250', 'ContourL_zv500', 'ContourL_zv1000', 'ContourL'].find(i => o.enabled.has(i));
+  if (!id) return;
+  const def = DEF[id], interval = id === 'ContourL' ? 100 : +id.split('zv')[1];
+  const col = gs(Math.min(60, o.grays[id] ?? def.gray)), size = 9 * o.sym, minLen = 150 * o.sym;
+  for (const t of o.tiles) {
+    if (!t.layers) continue;
+    const F = collectFeats(t.layers, def.src); if (!F.length) continue;
+    const tx = (t.x * 256 - o.originX) * o.scale, ty = (t.y * 256 - o.originY) * o.scale;
+    for (const f of F) {
+      const v = numOrNull(pfirst(f.props, ELEV_FIELDS));
+      if (v === null || v <= 0 || Math.round(v) % interval !== 0) continue;
+      screenParts([f], { tx, ty, ts }, a => {
+        let total = 0;
+        for (let i = 2; i < a.length; i += 2) total += Math.hypot(a[i] - a[i - 2], a[i + 1] - a[i - 1]);
+        if (total < minLen) return;
+        let d = total / 2;
+        for (let i = 2; i < a.length; i += 2) {
+          const dx = a[i] - a[i - 2], dy = a[i + 1] - a[i - 1], L = Math.hypot(dx, dy);
+          if (d > L) { d -= L; continue; }
+          const ax = a[i - 2] + dx * d / L, ay = a[i - 1] + dy * d / L;
+          if (ax < tx || ay < ty || ax >= tx + ts || ay >= ty + ts) return;   // 標註點須在本圖磚內
+          let ang = Math.atan2(dy, dx);
+          if (ang > Math.PI / 2) ang -= Math.PI; else if (ang < -Math.PI / 2) ang += Math.PI;
+          haloText(c, String(Math.round(v)), ax, ay, size, col, 'center', 'middle', ang);
+          return;
+        }
+      });
+    }
+  }
+}
+
+/** 圖例小圖（螢幕圖例、選單色票、輸出圖例共用） */
+function drawLegendGlyph(c, def, g, x, y, w, h, k) {
+  c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+  const e = { T: { tx: 0, ty: 0, ts: 1 }, k, g, pat: { x, y }, def };
+  if (def.kind === 'point') {
+    const s = 1.1 * k; c.strokeStyle = c.fillStyle = gs(g); c.lineCap = 'round';
+    if (def.id === 'ElevP') { SYMBOLS.elev(c, x + w * 0.3, y + h / 2, s); haloText(c, '512', x + w * 0.3 + 3.4 * s, y + h / 2, 8 * k, gs(g), 'left'); }
+    else if (def.id === 'BuildP') { SYMBOLS.temple(c, x + w * 0.28, y + h / 2, s * 0.95); c.save(); SYMBOLS.school(c, x + w * 0.72, y + h / 2, s * 0.95); c.restore(); }
+    else { SYMBOLS.station(c, x + w * 0.3, y + h / 2, s); SYMBOLS.generic(c, x + w * 0.72, y + h / 2, s); }
+  } else if (def.kind === 'grid') {
+    c.strokeStyle = gs(g); c.lineWidth = 0.8 * k;
+    pl(c, [x + w * 0.33, y, x + w * 0.33, y + h]); pl(c, [x + w * 0.73, y, x + w * 0.73, y + h]); pl(c, [x, y + h / 2, x + w, y + h / 2]);
+  } else if (def.group === 'line') {
+    const f = { type: 2, ext: 1, ln: def.src[0], props: {}, parts: [[x + 3 * k, y + h / 2, x + w - 3 * k, y + h / 2]] };
+    def.draw(c, [f], e);
+  } else {
+    const r = (x0, y0, x1, y1, ln) => ({ type: 3, ext: 1, ln, props: {}, parts: [[x0, y0, x1, y0, x1, y1, x0, y1]] });
+    if (def.id === 'BuildA') def.draw(c, [r(x + w * 0.3, y + h * 0.18, x + w * 0.7, y + h * 0.82, 'BuildA')], e);
+    else def.draw(c, [r(x + 0.5, y + 0.5, x + w - 0.5, y + h - 0.5, def.src[0])], e);
+    if (!def.noFrame) { c.strokeStyle = '#555'; c.lineWidth = Math.max(0.6, 0.6 * k); c.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); }
+  }
+  c.restore();
+}
+
+/* ============================================================
+ * TM2 方格網與圖框座標（螢幕與輸出共用）
+ * opts = { rect:{x,y,w,h}, toLL(px,py)->[lat,lng], fromLL(lat,lng)->[px,py], minPx, labelMinPx }
+ * ============================================================ */
+function computeGrid(opts) {
+  const { x, y, w, h } = opts.rect;
+  const tmAt = (px, py) => { const ll = opts.toLL(px, py); return TM2.forward(ll[0], ll[1]); };
+  let minE = Infinity, maxE = -Infinity, minN = Infinity, maxN = -Infinity;
+  for (let i = 0; i <= 12; i++) {
+    const t = i / 12;
+    for (const [px, py] of [[x + t * w, y], [x + t * w, y + h], [x, y + t * h], [x + w, y + t * h]]) {
+      const [E, N] = tmAt(px, py);
+      if (E < minE) minE = E; if (E > maxE) maxE = E; if (N < minN) minN = N; if (N > maxN) maxN = N;
+    }
+  }
+  const pxPerM = w / Math.max(1, maxE - minE);
+  const STEPS = [1000, 2000, 5000, 10000, 20000, 50000, 100000];
+  let step = CONFIG.GRID_STEP_M;
+  for (const s of STEPS) { if (s < CONFIG.GRID_STEP_M) continue; step = s; if (s * pxPerM >= opts.minPx) break; }
+  let every = 1;
+  for (const m of [1, 2, 5, 10, 20, 50]) { every = m; if (step * m * pxPerM >= opts.labelMinPx) break; }
+  const Es = [], Ns = [];
+  for (let E = Math.ceil(minE / step) * step; E <= maxE; E += step) Es.push(E);
+  for (let N = Math.ceil(minN / step) * step; N <= maxN; N += step) Ns.push(N);
+  const SAMPLES = 16;
+  const vlines = Es.map(E => { const pts = []; for (let i = 0; i <= SAMPLES; i++) { const N = minN - step + (maxN - minN + 2 * step) * i / SAMPLES; pts.push(opts.fromLL(...TM2.inverse(E, N))); } return pts; });
+  const hlines = Ns.map(N => { const pts = []; for (let i = 0; i <= SAMPLES; i++) { const E = minE - step + (maxE - minE + 2 * step) * i / SAMPLES; pts.push(opts.fromLL(...TM2.inverse(E, N))); } return pts; });
+  const bisect = (fn, a, b) => {
+    let fa = fn(a), fb = fn(b);
+    if (fa === 0) return a; if (fb === 0) return b;
+    if (fa * fb > 0) return null;
+    for (let i = 0; i < 40; i++) { const m = (a + b) / 2, fm = fn(m); if (fa * fm <= 0) { b = m; fb = fm; } else { a = m; fa = fm; } }
+    return (a + b) / 2;
+  };
+  const lab = (v) => (Math.round(v / step) % every === 0) ? String(Math.round(v / 1000)) : null;
+  const top = [], bottom = [], left = [], right = [];
+  for (const E of Es) {
+    const t = bisect(px => tmAt(px, y)[0] - E, x, x + w); if (t !== null) top.push({ p: t, label: lab(E) });
+    const b = bisect(px => tmAt(px, y + h)[0] - E, x, x + w); if (b !== null) bottom.push({ p: b, label: lab(E) });
+  }
+  for (const N of Ns) {
+    const l = bisect(py => tmAt(x, py)[1] - N, y, y + h); if (l !== null) left.push({ p: l, label: lab(N) });
+    const r = bisect(py => tmAt(x + w, py)[1] - N, y, y + h); if (r !== null) right.push({ p: r, label: lab(N) });
+  }
+  return { step, every, vlines, hlines, top, bottom, left, right, rect: opts.rect };
+}
+function drawGridLines(c, grid, lw, color) {
+  const { x, y, w, h } = grid.rect;
+  c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+  c.beginPath();
+  for (const pts of grid.vlines.concat(grid.hlines)) { c.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]); }
+  c.lineWidth = lw; c.strokeStyle = color; c.stroke();
+  c.restore();
+}
+function drawFrameAndTicks(c, grid, o) {   // o = { tick, font, gap, lw, frameLw, color }
+  const { x, y, w, h } = grid.rect;
+  c.save();
+  c.strokeStyle = o.color; c.fillStyle = o.color; c.lineWidth = o.lw; c.lineCap = 'butt';
+  c.beginPath();
+  for (const t of grid.top) { c.moveTo(t.p, y); c.lineTo(t.p, y - o.tick); }
+  for (const t of grid.bottom) { c.moveTo(t.p, y + h); c.lineTo(t.p, y + h + o.tick); }
+  for (const t of grid.left) { c.moveTo(x, t.p); c.lineTo(x - o.tick, t.p); }
+  for (const t of grid.right) { c.moveTo(x + w, t.p); c.lineTo(x + w + o.tick, t.p); }
+  c.stroke();
+  c.lineWidth = o.frameLw; c.strokeRect(x, y, w, h);
+  c.font = `500 ${o.font}px ${FONT_STACK}`;
+  const edge = o.font * 0.9;
+  c.textAlign = 'center'; c.textBaseline = 'bottom';
+  for (const t of grid.top) if (t.label && t.p > x + edge && t.p < x + w - edge) c.fillText(t.label, t.p, y - o.tick - o.gap);
+  c.textBaseline = 'top';
+  for (const t of grid.bottom) if (t.label && t.p > x + edge && t.p < x + w - edge) c.fillText(t.label, t.p, y + h + o.tick + o.gap);
+  c.textBaseline = 'middle'; c.textAlign = 'right';
+  for (const t of grid.left) if (t.label && t.p > y + edge * 0.6 && t.p < y + h - edge * 0.6) c.fillText(t.label, x - o.tick - o.gap, t.p);
+  c.textAlign = 'left';
+  for (const t of grid.right) if (t.label && t.p > y + edge * 0.6 && t.p < y + h - edge * 0.6) c.fillText(t.label, x + w + o.tick + o.gap, t.p);
+  c.restore();
+}
+
+/* ============================================================
+ * 註記圖層類別判斷
+ * ============================================================ */
+const CN_DIGIT = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
+function cnToInt(s) {
+  if (s === '十') return 10;
+  if (s.length === 1) return CN_DIGIT[s] ?? null;
+  if (s[0] === '十') return 10 + (CN_DIGIT[s[1]] ?? 0);
+  if (s[1] === '十') return (CN_DIGIT[s[0]] ?? 0) * 10 + (s[2] ? (CN_DIGIT[s[2]] ?? 0) : 0);
+  return null;
+}
+function annoClassOf(name) {
+  if (CONFIG.ANNO_LAYER_CLASS[name] != null) return +CONFIG.ANNO_LAYER_CLASS[name];
+  const m = name.match(/第?\s*([一二三四五六七八九十]{1,3})\s*類/);
+  if (m) return cnToInt(m[1]);
+  const nums = [...name.matchAll(/(\d+)(?![\dKk])/g)].map(x => +x[1]).filter(n => n >= 1 && n <= 20);
+  return nums.length ? nums[nums.length - 1] : null;
+}
+function cssFontFor(fontName) {
+  const n = String(fontName || '');
+  if (/楷|kai/i.test(n)) return '"DFKai-SB","BiauKai","Kaiti TC","標楷體",serif';
+  if (/明|宋|ming|song/i.test(n)) return '"Noto Serif TC","PMingLiU","新細明體",serif';
+  return FONT_STACK;
+}
+
+/* ============================================================
+ * PNG：寫入 300 dpi 解析度資訊（pHYs），貼進 Word 時即為 A4 原尺寸
+ * ============================================================ */
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC_TABLE[(c ^ u8[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+function pngSetDpi(u8, dpi) {
+  const ppm = Math.round(dpi / 0.0254);
+  const chunks = []; let p = 8, ihdrEnd = 0;
+  while (p < u8.length) {
+    const len = new DataView(u8.buffer, u8.byteOffset + p, 4).getUint32(0);
+    const type = String.fromCharCode(u8[p + 4], u8[p + 5], u8[p + 6], u8[p + 7]);
+    chunks.push({ type, start: p, end: p + 12 + len });
+    if (type === 'IHDR') ihdrEnd = p + 12 + len;
+    p += 12 + len;
+  }
+  const phys = new Uint8Array(21), dv = new DataView(phys.buffer);
+  dv.setUint32(0, 9); phys.set([0x70, 0x48, 0x59, 0x73], 4); dv.setUint32(8, ppm); dv.setUint32(12, ppm); phys[16] = 1;
+  dv.setUint32(17, crc32(phys.subarray(4, 17)));
+  const parts = [u8.subarray(0, ihdrEnd), phys];
+  for (const ch of chunks) if (ch.start >= ihdrEnd && ch.type !== 'pHYs') parts.push(u8.subarray(ch.start, ch.end));
+  const out = new Uint8Array(parts.reduce((s, a) => s + a.length, 0));
+  let o = 0; for (const a of parts) { out.set(a, o); o += a.length; }
+  return out;
+}
+/* ============================================================
+ * Web Mercator（與 Leaflet EPSG:3857 相同）與圖磚讀取
+ * ============================================================ */
+const MERC = {
+  project(lat, lng, z) {
+    const s = 256 * Math.pow(2, z), la = Math.max(-85.0511287798, Math.min(85.0511287798, lat)), sn = Math.sin(la * Math.PI / 180);
+    return [(lng + 180) / 360 * s, (0.5 - Math.log((1 + sn) / (1 - sn)) / (4 * Math.PI)) * s];
+  },
+  unproject(x, y, z) {
+    const s = 256 * Math.pow(2, z), n = Math.PI - 2 * Math.PI * y / s;
+    return [180 / Math.PI * Math.atan(Math.sinh(n)), x / s * 360 - 180];
+  },
+  metersPerPixel(lat, z) { return 40075016.686 * Math.cos(lat * Math.PI / 180) / (256 * Math.pow(2, z)); },
+};
+/** 讀取資料層級 dz 下、全域像素範圍內的所有圖磚 */
+async function loadTileSet(store, dz, minX, minY, maxX, maxY, onProgress, isCancelled) {
+  const n = Math.pow(2, dz), list = [];
+  const x0 = Math.max(0, Math.floor(minX / 256)), x1 = Math.min(n - 1, Math.floor((maxX - 1e-6) / 256));
+  const y0 = Math.max(0, Math.floor(minY / 256)), y1 = Math.min(n - 1, Math.floor((maxY - 1e-6) / 256));
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) list.push({ x, y, layers: null });
+  let done = 0, next = 0;
+  const worker = async () => {
+    while (next < list.length) {
+      if (isCancelled && isCancelled()) return;
+      const t = list[next++];
+      try { t.layers = await store.get(dz, t.x, t.y); } catch (err) { console.warn('圖磚讀取失敗', dz, t.x, t.y, err); }
+      done++; if (onProgress) onProgress(done, list.length);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(6, list.length) }, worker));
+  return list;
+}
+/** 圖例順序：由上而下（上面的圖層畫在上層）；方格網固定在最上面 */
+function legendDefs(enabled, order) {
+  const defs = [...(order || DRAW_ORDER)].reverse().filter(id => enabled.has(id) && DEF[id]).map(id => DEF[id]);
+  if (enabled.has('Grid')) defs.unshift(DEF.Grid);
+  return defs;
+}
+/** 合併使用者存過的順序與預設順序（新圖層插回其預設位置） */
+function mergeOrder(saved) {
+  const def = DRAW_ORDER.slice();
+  if (!Array.isArray(saved)) return def;
+  const out = saved.filter((id, i) => def.includes(id) && saved.indexOf(id) === i);
+  def.forEach((id, i) => {
+    if (out.includes(id)) return;
+    let pos = 0;
+    for (let j = i - 1; j >= 0; j--) { const q = out.indexOf(def[j]); if (q >= 0) { pos = q + 1; break; } }
+    out.splice(pos, 0, id);
+  });
+  return out;
+}
+function enabledVectorIds(enabled) { return [...enabled].filter(id => DEF[id] && DEF[id].kind !== 'grid'); }
+
+/* ============================================================
+ * A4、300 dpi 輸出
+ * ============================================================ */
+function exportLayout(size) {
+  const dpi = CONFIG.EXPORT.dpi, mm = v => v * dpi / 25.4;
+  const land = size.x >= size.y;
+  const PW = Math.round(mm(land ? 297 : 210)), PH = Math.round(mm(land ? 210 : 297));
+  const margin = mm(CONFIG.EXPORT.marginMM), foot = mm(CONFIG.EXPORT.footerMM);
+  const availW = PW - 2 * margin, availH = PH - 2 * margin - foot;
+  const k = Math.min(availW / size.x, availH / size.y);
+  const fw = size.x * k, fh = size.y * k, fx = (PW - fw) / 2, fy = margin + (availH - fh) / 2;
+  return { dpi, mm, land, PW, PH, margin, foot, k, fx, fy, fw, fh };
+}
+function printScaleDenominator(lat, z, k, dpi) { return (MERC.metersPerPixel(lat, z) / k) / (0.0254 / dpi); }
+function roundScale(d) { const p = Math.pow(10, Math.floor(Math.log10(d)) - 1); return Math.round(d / p) * p; }
+
+/** 註記、點名稱、自訂符號的輸出繪製。a = { kind:'text'|'pt'|'sym', text, rot, family, vertical, bg, align, sym } */
+function drawAnnoItem(c, a, x, y, size, k) {
+  if (a.kind !== 'sym' && a.align === 'left') {          // 點名稱：以文字方塊中心為旋轉軸
+    c.save(); c.font = `500 ${size}px ${a.family || FONT_STACK}`;
+    const tw = a.vertical ? size : c.measureText(a.text).width; c.restore();
+    return drawAnnoItem(c, Object.assign({}, a, { align: 'center' }), x + tw / 2, y, size, k);
+  }
+  c.save(); c.translate(x, y); if (a.rot) c.rotate(a.rot * Math.PI / 180);
+  if (a.kind === 'sym') {
+    c.strokeStyle = c.fillStyle = '#000'; c.lineCap = 'round'; c.lineJoin = 'round';
+    (SYMBOLS[a.sym] || SYMBOLS.generic)(c, 0, 0, 1.15 * k * (a.scale || 1));
+    c.restore(); return;
+  }
+  c.font = `500 ${size}px ${a.family || FONT_STACK}`; c.textBaseline = 'middle';
+  const left = a.align === 'left';
+  c.textAlign = left ? 'left' : 'center';
+  const chars = [...a.text], step = size * 1.05;
+  const w = a.vertical ? size : c.measureText(a.text).width, h = a.vertical ? chars.length * step : size * 1.15;
+  const x0 = left ? 0 : -w / 2;
+  if (a.bg) { const pad = size * 0.22; c.fillStyle = '#fff'; c.fillRect(x0 - pad, -h / 2 - pad, w + 2 * pad, h + 2 * pad); }
+  c.lineJoin = 'round'; c.lineWidth = size * 0.3; c.strokeStyle = '#fff'; c.fillStyle = '#000';
+  if (a.vertical) {
+    const y0 = -(chars.length - 1) * step / 2;
+    chars.forEach((ch, i) => c.strokeText(ch, 0, y0 + i * step));
+    chars.forEach((ch, i) => c.fillText(ch, 0, y0 + i * step));
+  } else { c.strokeText(a.text, 0, 0); c.fillText(a.text, 0, 0); }
+  c.restore();
+}
+function drawExportLegend(c, defs, grays, L) {
+  if (!defs.length) return;
+  const mm = L.mm, pad = mm(2), gw = mm(9), gh = mm(3.6), rowH = mm(4.8), font = mm(2.6), titleH = mm(5.2);
+  c.save();
+  c.font = `500 ${font}px ${FONT_STACK}`;
+  const labelW = Math.max(...defs.map(d => c.measureText(d.label).width));
+  const cols = defs.length > 16 ? 3 : defs.length > 7 ? 2 : 1, rows = Math.ceil(defs.length / cols);
+  const colW = gw + mm(2) + labelW + mm(4);
+  const bw = pad * 2 + cols * colW - mm(4), bh = pad * 2 + titleH + rows * rowH;
+  const bx = L.fx + mm(2.5), by = L.fy + L.fh - mm(2.5) - bh;
+  c.fillStyle = '#fff'; c.fillRect(bx, by, bw, bh);
+  c.strokeStyle = '#000'; c.lineWidth = mm(0.2); c.strokeRect(bx, by, bw, bh);
+  c.fillStyle = '#000'; c.font = `700 ${mm(3)}px ${FONT_STACK}`; c.textBaseline = 'top'; c.textAlign = 'left';
+  c.fillText('圖例', bx + pad, by + pad);
+  c.font = `500 ${font}px ${FONT_STACK}`; c.textBaseline = 'middle';
+  defs.forEach((d, i) => {
+    const col = Math.floor(i / rows), row = i % rows;
+    const x = bx + pad + col * colW, y = by + pad + titleH + row * rowH;
+    drawLegendGlyph(c, d, grays[d.id] ?? d.gray, x, y + (rowH - gh) / 2, gw, gh, gh / 16);
+    c.fillStyle = '#000'; c.fillText(d.label, x + gw + mm(2), y + rowH / 2);
+  });
+  c.restore();
+}
+/**
+ * o = { z, pbMin:{x,y}, size:{x,y}, store, header, enabled, grays, contourLabels, skipPoints, annos:[], legend, onProgress }
+ */
+async function composeExport(o) {
+  const L = exportLayout(o.size), { mm, k, fx, fy, fw, fh } = L;
+  const cv = document.createElement('canvas'); cv.width = L.PW; cv.height = L.PH;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#fff'; c.fillRect(0, 0, L.PW, L.PH);
+  const toLL = (px, py) => MERC.unproject(o.pbMin.x + (px - fx) / k, o.pbMin.y + (py - fy) / k, o.z);
+  const fromLL = (la, ln) => { const [X, Y] = MERC.project(la, ln, o.z); return [fx + (X - o.pbMin.x) * k, fy + (Y - o.pbMin.y) * k]; };
+
+  c.save(); c.beginPath(); c.rect(fx, fy, fw, fh); c.clip();
+  if (o.store && o.header && enabledVectorIds(o.enabled).length) {
+    const dz = Math.max(o.header.minZoom, Math.min(o.header.maxZoom, o.z)), f = Math.pow(2, o.z - dz);
+    const tiles = await loadTileSet(o.store, dz, o.pbMin.x / f, o.pbMin.y / f, (o.pbMin.x + o.size.x) / f, (o.pbMin.y + o.size.y) / f, o.onProgress);
+    renderVector(c, { tiles, dz, originX: o.pbMin.x / f - fx / (f * k), originY: o.pbMin.y / f - fy / (f * k), scale: f * k, sym: k, enabled: o.enabled, grays: o.grays, contourLabels: o.contourLabels, skipPoints: o.skipPoints, order: o.order });
+  }
+  const grid = computeGrid({ rect: { x: fx, y: fy, w: fw, h: fh }, toLL, fromLL, minPx: 9 * k, labelMinPx: mm(9) });
+  if (o.enabled.has('Grid')) drawGridLines(c, grid, Math.max(1, 0.8 * k), gs(o.grays.Grid ?? DEF.Grid.gray));
+  for (const a of o.annos || []) {
+    let [x, y] = fromLL(a.lat, a.lng);
+    if (x < fx - 300 || y < fy - 300 || x > fx + fw + 300 || y > fy + fh + 300) continue;
+    if (a.align === 'left') x += (a.offsetPx || 0) * k;
+    if (a.text || a.kind === 'sym') drawAnnoItem(c, a, x, y, a.fontPx * k, k);
+  }
+  // 樂山雷達站遮罩：一律以白色覆蓋
+  const ring = radarSquare(16).map(([la, ln]) => fromLL(la, ln));
+  c.beginPath(); ring.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath();
+  c.fillStyle = '#fff'; c.fill(); c.lineWidth = Math.max(1, 0.6 * k); c.strokeStyle = '#888'; c.setLineDash([mm(1), mm(0.8)]); c.stroke(); c.setLineDash([]);
+  c.restore();
+
+  if (o.legend) {
+    const defs = legendDefs(o.enabled, o.order);
+    drawExportLegend(c, defs, o.grays, L);
+  }
+  drawFrameAndTicks(c, grid, { tick: mm(CONFIG.TICK_MM), font: mm(2.7), gap: mm(0.8), lw: mm(0.18), frameLw: mm(0.3), color: '#000' });
+
+  const [clat] = toLL(fx + fw / 2, fy + fh / 2);
+  const scale = roundScale(printScaleDenominator(clat, o.z, k, L.dpi));
+  c.fillStyle = '#333'; c.font = `500 ${mm(2.3)}px ${FONT_STACK}`; c.textBaseline = 'bottom';
+  const footY = L.PH - L.margin * 0.55;
+  c.textAlign = 'left';
+  c.fillText(`資料來源：內政部國土測繪中心 1/25,000 經建版地形圖　座標：TWD97 TM2（公里）　方格網間距 ${grid.step / 1000} 公里`, fx, footY);
+  c.textAlign = 'right';
+  c.fillText(`A4 原尺寸列印比例約 1:${scale.toLocaleString('en-US')}`, fx + fw, footY);
+  return { canvas: cv, layout: L, scale, gridStep: grid.step };
+}
+/*CORE-END*/
+</script>
+<script>
+/*APP-BEGIN*/
+(function () {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const params = new URLSearchParams(location.search);
+const PREF_KEY = 'gray-topo-prefs-v2';   // v2：水體預設灰階改為 150，舊設定不沿用
+const CN_NUM = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十'];
+
+const state = {
+  archive: null, store: null,
+  enabled: new Set(LAYER_DEFS.filter(d => d.defaultOn).map(d => d.id)),
+  grays: Object.fromEntries(LAYER_DEFS.map(d => [d.id, d.gray])),
+  order: DRAW_ORDER.slice(),            // 繪製順序（由下而上），可在圖例拖曳調整
+  base: 'emap', contourLabels: true, legendExport: true, view: null,
+  locked: false, inspect: false, userSized: false,
+  annoScale: 1, annos: new Map(), annoSeq: 0, annoDeleted: new Set(), annoClassOn: new Set(), annoLayers: [], annoBg: false,
+  pts: new Map(), ptDeleted: new Set(), ptDeletedInfo: new Map(),   // 建物、交通設施的點名稱方塊；已刪除的點
+};
+const PT_LAYERS = ['BuildP', 'TransP'];     // 有名稱方塊、可逐點刪除的點圖層
+const MAX_PT_BOXES = 2500;
+let ptWarned = false;
+(function loadPrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem(PREF_KEY) || 'null'); if (!p) return;
+    if (Array.isArray(p.enabled)) state.enabled = new Set(p.enabled.filter(id => DEF[id]));
+    if (p.grays) for (const id in p.grays) if (DEF[id]) state.grays[id] = +p.grays[id];
+    if (p.base) state.base = p.base;
+    state.order = mergeOrder(p.order);
+    if (typeof p.contourLabels === 'boolean') state.contourLabels = p.contourLabels;
+    if (typeof p.legendExport === 'boolean') state.legendExport = p.legendExport;
+    if (p.view && isFinite(p.view.lat)) state.view = p.view;
+  } catch (e) { /* 忽略 */ }
+})();
+let prefTimer = 0;
+function savePrefs() {
+  clearTimeout(prefTimer);
+  prefTimer = setTimeout(() => {
+    try {
+      const c = map.getCenter();
+      localStorage.setItem(PREF_KEY, JSON.stringify({ enabled: [...state.enabled], grays: state.grays, base: state.base, order: state.order,
+        contourLabels: state.contourLabels, legendExport: state.legendExport, view: { lat: c.lat, lng: c.lng, zoom: map.getZoom() } }));
+    } catch (e) { /* 忽略 */ }
+  }, 300);
+}
+
+/* ---------- 共用 UI ---------- */
+const wrap = $('#mapWrap'), mapEl = $('#map'), drawer = $('#drawer'), zoombox = $('#zoombox'), ctrlStack = $('#ctrlStack');
+let toastTimer = 0;
+function toast(msg, ms = 3200) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), ms); }
+function setStatus(st, text) { $('#status').dataset.state = st; $('#statusText').textContent = text; $('#status').title = text; }
+let busyTimer = 0;
+function busy(text) {
+  const b = $('#busy');
+  clearTimeout(busyTimer);
+  if (!text) { b.classList.remove('on'); return; }
+  b.textContent = text;
+  busyTimer = setTimeout(() => b.classList.add('on'), 150);
+}
+const clampZ = (z, h) => Math.max(h.minZoom, Math.min(h.maxZoom, z));
+
+/* ---------- 地圖 ---------- */
+const startView = state.view || CONFIG.START_VIEW;
+const map = L.map(mapEl, {
+  zoomControl: false, minZoom: CONFIG.MAP_MIN_ZOOM, maxZoom: CONFIG.MAP_MAX_ZOOM, zoomSnap: 1, zoomDelta: 1,
+  wheelPxPerZoomLevel: 90, maxBounds: L.latLngBounds([20.2, 116.6], [27.4, 123.8]), maxBoundsViscosity: 0.6,
+}).setView([startView.lat, startView.lng], Math.round(startView.zoom));
+map.attributionControl.setPrefix(false);
+for (const [name, z] of [['vectorPane', 350], ['gridPane', 380], ['annoPane', 620], ['maskPane', 650]]) {
+  const p = map.createPane(name); p.style.zIndex = z;
+  if (name !== 'annoPane') p.style.pointerEvents = 'none';
+}
+
+/* ---------- 底圖 ---------- */
+const NLSC = '© <a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">內政部國土測繪中心</a>';
+const SINICA = '© <a href="https://gis.sinica.edu.tw/tileserver/" target="_blank" rel="noopener">中研院人社中心 GIS 專題中心</a>';
+const BASEMAPS = {
+  emap: () => L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', { maxNativeZoom: 19, maxZoom: 20, attribution: '通用電子地圖 ' + NLSC }),
+  google: () => L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&hl=zh-TW&x={x}&y={y}&z={z}', { subdomains: '0123', maxZoom: 20, attribution: '© Google' }),
+  photo: () => L.tileLayer('https://wmts.nlsc.gov.tw/wmts/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}', { maxNativeZoom: 19, maxZoom: 20, attribution: '正射影像 ' + NLSC }),
+  topo: () => L.tileLayer('https://wmts.nlsc.gov.tw/wmts/B25000/default/GoogleMapsCompatible/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 20, attribution: '1/25000 地形圖 ' + NLSC }),
+  bao: () => L.tileLayer('https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM20K_1904-jpg-{z}-{x}-{y}', { maxNativeZoom: 16, maxZoom: 20, attribution: '臺灣堡圖（1904）' + SINICA }),
+};
+let baseLayer = null;
+function setBase(key) {
+  if (baseLayer) { map.removeLayer(baseLayer); baseLayer = null; }
+  if (BASEMAPS[key]) { baseLayer = BASEMAPS[key](); baseLayer.addTo(map); } else key = 'none';
+  state.base = key;
+  const sel = $('#baseSelect'); if (sel && sel.value !== key) sel.value = key;
+  savePrefs();
+}
+$('#baseSelect').addEventListener('change', e => setBase(e.target.value));
+setBase('emap');                                  // 每次開啟預設為通用電子地圖
+
+/* ---------- 向量圖層（單一畫布，平移縮放後重繪） ---------- */
+const VectorLayer = L.Layer.extend({
+  onAdd(m) {
+    this._c = L.DomUtil.create('canvas', 'vec-canvas leaflet-zoom-animated', m.getPane('vectorPane'));
+    this._token = 0; this._drawn = null;
+    m.on('moveend', this.redraw, this);
+    m.on('zoomstart', () => { this._animated = false; });
+    m.on('zoomanim', this._onAnim, this);
+    m.on('zoomend', () => { if (!this._animated) this._c.style.visibility = 'hidden'; });
+    this.redraw();
+  },
+  _onAnim(e) {
+    if (!this._drawn) return;
+    this._animated = true;
+    const scale = this._map.getZoomScale(e.zoom, this._drawn.zoom);
+    const off = this._map._latLngToNewLayerPoint(this._drawn.nw, e.zoom, e.center);
+    L.DomUtil.setTransform(this._c, off, scale);
+  },
+  _clear() { const c = this._c; c.width = c.height = 0; this._drawn = null; busy(''); },
+  async redraw() {
+    const m = this._map; if (!m) return;
+    const token = ++this._token;
+    const ids = enabledVectorIds(state.enabled);
+    if (!state.store || !ids.length) { this._clear(); syncPointItems(null); return; }
+    const h = state.archive.header, z = m.getZoom();
+    if (z < h.minZoom) { this._clear(); if (!this._zoomHinted) { this._zoomHinted = true; toast(`向量圖層從 Zoom ${h.minZoom} 開始顯示，請放大地圖`); } return; }
+    const size = m.getSize(), pb = m.getPixelBounds(), nwLayer = m.containerPointToLayerPoint([0, 0]), nw = m.containerPointToLatLng([0, 0]);
+    const dz = clampZ(z, h), f = Math.pow(2, z - dz);
+    const tiles = await loadTileSet(state.store, dz, pb.min.x / f, pb.min.y / f, pb.max.x / f, pb.max.y / f,
+      (d, n) => { if (token === this._token && d < n) busy(`讀取圖磚 ${d} / ${n}`); }, () => token !== this._token);
+    if (token !== this._token) return;
+    busy('');
+    const dpr = window.devicePixelRatio || 1;
+    const off = document.createElement('canvas');
+    off.width = Math.round(size.x * dpr); off.height = Math.round(size.y * dpr);
+    try {
+      renderVector(off.getContext('2d'), { tiles, dz, originX: pb.min.x / f, originY: pb.min.y / f, scale: f * dpr, sym: dpr,
+        enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels, skipPoints: state.ptDeleted, order: state.order });
+    } catch (err) { console.error(err); toast('繪製圖層時發生錯誤：' + err.message); }
+    if (token !== this._token) return;
+    const c = this._c;
+    c.width = off.width; c.height = off.height; c.style.width = size.x + 'px'; c.style.height = size.y + 'px';
+    c.getContext('2d').drawImage(off, 0, 0);
+    L.DomUtil.setPosition(c, nwLayer);
+    c.style.visibility = '';
+    this._drawn = { zoom: z, nw };
+    syncPointItems(tiles, dz);
+  },
+});
+const vectorLayer = new VectorLayer().addTo(map);
+let redrawTimer = 0;
+function requestVectorRedraw(now) { clearTimeout(redrawTimer); if (now) vectorLayer.redraw(); else redrawTimer = setTimeout(() => vectorLayer.redraw(), 120); }
+
+/* ---------- 方格網（圖內）與圖框座標（圖外） ---------- */
+const gridCanvas = L.DomUtil.create('canvas', 'grid-canvas', map.getPane('gridPane'));
+const frameCanvas = $('#frameCanvas');
+function fitCanvas(cv, w, h, dpr) {
+  const W = Math.round(w * dpr), H = Math.round(h * dpr);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; cv.style.width = w + 'px'; cv.style.height = h + 'px'; }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); return c;
+}
+let lastGridStep = 1000;
+function drawOverlays() {
+  const size = map.getSize(), dpr = window.devicePixelRatio || 1;
+  if (!size.x || !size.y) return;
+  L.DomUtil.setPosition(gridCanvas, map.containerPointToLayerPoint([0, 0]));
+  const gc = fitCanvas(gridCanvas, size.x, size.y, dpr);
+  const grid = computeGrid({
+    rect: { x: 0, y: 0, w: size.x, h: size.y },
+    toLL: (x, y) => { const ll = map.containerPointToLatLng([x, y]); return [ll.lat, ll.lng]; },
+    fromLL: (la, ln) => { const p = map.latLngToContainerPoint([la, ln]); return [p.x, p.y]; },
+    minPx: 9, labelMinPx: 40,
+  });
+  lastGridStep = grid.step;
+  if (state.enabled.has('Grid')) drawGridLines(gc, grid, 1, gs(state.grays.Grid));
+  const wr = wrap.getBoundingClientRect(), mr = mapEl.getBoundingClientRect();
+  const fc = fitCanvas(frameCanvas, wr.width, wr.height, dpr);
+  fc.translate(mr.left - wr.left, mr.top - wr.top);
+  drawFrameAndTicks(fc, grid, { tick: 96 / 25.4 * CONFIG.TICK_MM, font: 12, gap: 3, lw: 1, frameLw: 1.2, color: '#1c2731' });
+  gridCanvas.style.visibility = '';
+}
+let ovRaf = 0;
+function scheduleOverlays() { if (!ovRaf) ovRaf = requestAnimationFrame(() => { ovRaf = 0; drawOverlays(); }); }
+map.on('move resize viewreset zoomend', scheduleOverlays);
+map.on('zoomanim', () => { gridCanvas.style.visibility = 'hidden'; });
+
+/* ---------- 樂山雷達站遮罩（永遠在最上層） ---------- */
+const maskPoly = L.polygon(radarSquare(16), { renderer: L.svg({ pane: 'maskPane', padding: 0.5 }), interactive: false,
+  color: '#5f6b75', weight: 1, dashArray: '5 4', fillColor: '#e6e9ec', fillOpacity: 1 }).addTo(map);
+L.marker([CONFIG.RADAR.lat, CONFIG.RADAR.lng], { pane: 'maskPane', interactive: false, keyboard: false,
+  icon: L.divIcon({ className: 'mask-label', html: '<div>國防機敏區域<br>不予顯示</div>', iconSize: [0, 0] }) }).addTo(map);
+
+/* ---------- 比例尺滑桿（與滑鼠滾輪同步） ---------- */
+const slider = $('#zoomSlider');
+slider.min = CONFIG.MAP_MIN_ZOOM; slider.max = CONFIG.MAP_MAX_ZOOM;
+slider.addEventListener('input', () => { if (!state.locked) map.setZoom(+slider.value); });
+function updateZoomUI() {
+  const z = map.getZoom(), lat = map.getCenter().lat;
+  slider.value = z; $('#zoomVal').textContent = z;
+  const screen = roundScale(MERC.metersPerPixel(lat, z) * 96 / 0.0254);
+  let txt = `螢幕約 1:${screen.toLocaleString('en-US')}`;
+  if (state.locked) {
+    const L0 = exportLayout(map.getSize());
+    txt += `｜輸出約 1:${roundScale(printScaleDenominator(lat, z, L0.k, L0.dpi)).toLocaleString('en-US')}`;
+  }
+  if (lastGridStep !== CONFIG.GRID_STEP_M) txt += `｜格網 ${lastGridStep / 1000} 公里`;
+  $('#zoomScale').textContent = txt;
+  relayoutZoombox();
+}
+map.on('zoomend moveend', () => { updateZoomUI(); savePrefs(); });
+function relayoutZoombox() { if (typeof layout === 'function') requestAnimationFrame(() => { const r = wrap.getBoundingClientRect(), mr = mapEl.getBoundingClientRect(); const dl = drawer.classList.contains('collapsed') ? window.innerWidth - 34 : drawer.getBoundingClientRect().left - 34; ctrlStack.style.left = Math.max(mr.left - r.left + 10, Math.min(mr.right, dl) - 10 - r.left - ctrlStack.offsetWidth) + 'px'; }); }
+
+/* ---------- 圖層選單 ---------- */
+const rowRefs = {};
+function glyphInto(cv, def) {
+  const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+  drawLegendGlyph(c, def, state.grays[def.id], 0, 0, cv.width, cv.height, cv.width / 36);
+}
+function buildRows() {
+  for (const group of ['point', 'line', 'polygon']) {
+    const body = $(`.sec[data-group="${group}"] .sec-body`);
+    for (const def of LAYER_DEFS.filter(d => d.group === group)) {
+      const row = document.createElement('div'); row.className = 'row';
+      const cid = 'chk_' + def.id;
+      const srcTxt = def.src.length ? def.src.join('、') : 'TWD97 TM2';
+      row.innerHTML = `<input type="checkbox" id="${cid}"><canvas width="72" height="32" aria-hidden="true"></canvas>`
+        + `<label for="${cid}" title="${def.label}｜${srcTxt}">${def.label}</label>`
+        + `<input type="range" min="0" max="255" step="5" aria-label="${def.label}的灰階（0 黑、255 白）"><output></output>`;
+      const chk = row.querySelector('input[type=checkbox]'), rng = row.querySelector('input[type=range]'), out = row.querySelector('output'), cv = row.querySelector('canvas');
+      chk.checked = state.enabled.has(def.id);
+      rng.value = state.grays[def.id]; out.textContent = state.grays[def.id];
+      chk.addEventListener('change', () => {
+        if (chk.checked) state.enabled.add(def.id); else state.enabled.delete(def.id);
+        if (!chk.checked && PT_LAYERS.includes(def.id)) for (const it of state.pts.values()) if (it.layer === def.id && it.marker) { map.removeLayer(it.marker); it.marker = null; if (!state.locked) state.pts.delete(it.key); }
+        if (chk.checked && def.kind !== 'grid' && !state.store) toast('請先按上方「載入本機 .pmtiles 檔」，勾選的圖層才會顯示');
+        afterStyleChange(def, true);
+      });
+      rng.addEventListener('input', () => { state.grays[def.id] = +rng.value; out.textContent = rng.value; glyphInto(cv, def); afterStyleChange(def, false); });
+      body.appendChild(row);
+      rowRefs[def.id] = { row, chk, rng, out, cv };
+      glyphInto(cv, def);
+    }
+  }
+}
+function afterStyleChange(def, immediate) {
+  buildLegend();
+  if (def.kind === 'grid') scheduleOverlays(); else if (state.enabled.has(def.id) || immediate) requestVectorRedraw(immediate);
+  savePrefs();
+}
+document.querySelectorAll('.sec-head button').forEach(b => b.addEventListener('click', () => b.closest('.sec').classList.toggle('closed')));
+$('#optContourLabel').checked = state.contourLabels;
+$('#optContourLabel').addEventListener('change', e => { state.contourLabels = e.target.checked; requestVectorRedraw(true); savePrefs(); });
+$('#btnResetGray').addEventListener('click', () => {
+  for (const d of LAYER_DEFS) { state.grays[d.id] = d.gray; const r = rowRefs[d.id]; r.rng.value = d.gray; r.out.textContent = d.gray; glyphInto(r.cv, d); }
+  buildLegend(); requestVectorRedraw(true); scheduleOverlays(); savePrefs();
+});
+
+/* 選單收合 */
+function setDrawer(open) {
+  drawer.classList.toggle('collapsed', !open);
+  $('#drawerTab').setAttribute('aria-expanded', String(open));
+  setTimeout(layout, 280);
+}
+$('#drawerTab').addEventListener('click', () => setDrawer(drawer.classList.contains('collapsed')));
+
+/* ---------- 螢幕圖例 ---------- */
+function buildLegend() {
+  const rows = $('#legendRows'); rows.innerHTML = '';
+  const defs = legendDefs(state.enabled, state.order);
+  $('#legendEmpty').hidden = defs.length > 0;
+  for (const d of defs) {
+    const r = document.createElement('div'); r.className = 'lg-row';
+    const fixed = d.kind === 'grid';
+    const grip = document.createElement('span'); grip.className = 'lg-grip'; grip.textContent = fixed ? '' : '⠿'; grip.setAttribute('aria-hidden', 'true');
+    const cv = document.createElement('canvas'); cv.width = 72; cv.height = 32; cv.style.width = '36px'; cv.style.height = '16px';
+    glyphInto(cv, d);
+    const sp = document.createElement('span'); sp.textContent = d.label;
+    r.append(grip, cv, sp);
+    if (fixed) { r.classList.add('fixed'); r.title = '方格網固定畫在最上層'; }
+    else {
+      r.dataset.id = d.id; r.tabIndex = 0; r.title = '拖曳調整上下順序（或選取後按 ↑ ↓）';
+      r.setAttribute('aria-label', `${d.label}，按上下鍵調整圖層順序`);
+      r.addEventListener('pointerdown', ev => startLegendDrag(ev, r));
+      r.addEventListener('keydown', ev => {
+        if (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') return;
+        ev.preventDefault();
+        const ids = legendRowIds(), i = ids.indexOf(d.id), j = i + (ev.key === 'ArrowUp' ? -1 : 1);
+        if (j < 0 || j >= ids.length) return;
+        [ids[i], ids[j]] = [ids[j], ids[i]];
+        applyLegendOrder(ids);
+        const again = $(`#legendRows .lg-row[data-id="${d.id}"]`); if (again) again.focus();
+      });
+    }
+    rows.appendChild(r);
+  }
+  $('#legendReset').hidden = DRAW_ORDER.every((id, i) => state.order[i] === id);
+}
+function legendRowIds() { return [...document.querySelectorAll('#legendRows .lg-row[data-id]')].map(r => r.dataset.id); }
+/** 依圖例由上而下的新順序，重排已勾選圖層在完整順序中所佔的位置（未勾選的圖層位置不變） */
+function applyLegendOrder(idsTopFirst) {
+  const set = new Set(idsTopFirst), bottomFirst = idsTopFirst.slice().reverse();
+  const slots = []; state.order.forEach((id, i) => { if (set.has(id)) slots.push(i); });
+  slots.forEach((slot, k) => { state.order[slot] = bottomFirst[k]; });
+  buildLegend(); requestVectorRedraw(true); savePrefs();
+}
+function startLegendDrag(ev, row) {
+  if (ev.button !== undefined && ev.button !== 0) return;
+  ev.preventDefault();
+  const list = $('#legendRows'), y0 = ev.clientY, pid = ev.pointerId; let moved = false;
+  // 拖曳時會移動 DOM 節點，瀏覽器會因此取消 pointer capture，所以改在 window 上監聽
+  const onMove = e => {
+    if (e.pointerId !== pid) return;
+    if (!moved && Math.abs(e.clientY - y0) < 4) return;
+    if (!moved) { moved = true; row.classList.add('dragging'); }
+    const others = [...list.querySelectorAll('.lg-row[data-id]')].filter(r => r !== row);
+    const before = others.find(r => { const b = r.getBoundingClientRect(); return e.clientY < b.top + b.height / 2; });
+    if (before) list.insertBefore(row, before); else list.appendChild(row);
+  };
+  const onUp = e => {
+    if (e.pointerId !== pid) return;
+    window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
+    row.classList.remove('dragging');
+    if (moved) applyLegendOrder(legendRowIds());
+  };
+  window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
+}
+$('#legendReset').addEventListener('click', () => { state.order = DRAW_ORDER.slice(); buildLegend(); requestVectorRedraw(true); savePrefs(); });
+$('#legendExport').checked = state.legendExport;
+$('#legendExport').addEventListener('change', e => { state.legendExport = e.target.checked; savePrefs(); });
+$('#legendMin').addEventListener('click', e => {
+  const min = $('#legend').classList.toggle('min');
+  e.target.textContent = min ? '展開' : '收合'; e.target.setAttribute('aria-expanded', String(!min));
+});
+
+/* ---------- 載入 .pmtiles（單一檔或分割圖磚） ---------- */
+async function useArchive(arc, label, silent) {
+  const h = arc.header;
+  if (h.tileType !== 1) throw new Error('此檔不是向量圖磚（MVT）');
+  state.archive = arc; state.store = new TileStore(arc);
+  setStatus('ok', `已載入：${label}（Zoom ${h.minZoom}~${h.maxZoom}）`);
+  requestVectorRedraw(true);
+  if (state.locked) scanAnnoLayers();
+  if (!silent && !enabledVectorIds(state.enabled).length) toast('已載入。請在右側「圖層選單」勾選要顯示的圖層。');
+}
+async function openArchive(src) {
+  setStatus('loading', `讀取中：${src.name}…`);
+  try {
+    const arc = await new PMTilesArchive(src).init();
+    const mb = src.size ? `${(src.size / 1048576).toFixed(1)} MB｜` : '';
+    await useArchive(arc, src.name, false);
+    setStatus('ok', `已載入：${src.name}（${mb}Zoom ${arc.header.minZoom}~${arc.header.maxZoom}）`);
+  } catch (err) { console.error(err); setStatus('error', `無法讀取 ${src.name}：${err.message}`); }
+}
+async function openPartitioned(index, makeSource, label, silent) {
+  if (!silent) setStatus('loading', `讀取中：${label}…`);
+  const arc = await new PartitionedArchive(index, makeSource).init();
+  const mb = index.total_bytes ? `${(index.total_bytes / 1048576).toFixed(0)} MB｜` : '';
+  await useArchive(arc, '', silent);
+  setStatus('ok', `已載入：${label}（${index.tiles.length + (index.overview ? 1 : 0)} 個檔｜${mb}Zoom ${arc.header.minZoom}~${arc.header.maxZoom}）`);
+}
+/** 由選取的檔案（可能來自資料夾）建立分割圖磚 */
+async function openLocalFiles(files) {
+  files = [...files];
+  const pm = files.filter(f => /\.pmtiles$/i.test(f.name));
+  if (files.length === 1 && pm.length === 1) return openArchive(new FileSource(pm[0]));
+  if (!pm.length) { toast('沒有找到 .pmtiles 檔'); return; }
+  try {
+    const byName = new Map(pm.map(f => [f.name, f]));
+    const idxFile = files.find(f => f.name === 'index.json');
+    let index;
+    if (idxFile) index = JSON.parse(await idxFile.text());
+    else {
+      const parts = pm.map(f => f.name.match(/^(\d+)-(\d+)-(\d+)\.pmtiles$/)).filter(Boolean);
+      if (!parts.length) { if (pm.length === 1) return openArchive(new FileSource(pm[0])); throw new Error('找不到 index.json，檔名也不是「z-x-y.pmtiles」格式'); }
+      index = { format: 'gray-topo-partition', min_zoom: 7, max_zoom: 15, partition_zoom: +parts[0][1],
+        overview: byName.has('overview.pmtiles') ? 'overview.pmtiles' : null, tiles: parts.map(m => `${m[1]}-${m[2]}-${m[3]}`) };
+    }
+    index.total_bytes = pm.reduce((a, f) => a + f.size, 0);
+    await openPartitioned(index, name => { const f = byName.get(name); if (!f) throw new Error('缺少檔案 ' + name); return new FileSource(f); }, '本機分割圖磚', false);
+  } catch (err) { console.error(err); setStatus('error', '無法讀取分割圖磚：' + err.message); }
+}
+async function openRemote(url, silent) {
+  try {
+    if (/\.json(\?|$)/i.test(url)) {
+      const res = await fetch(url, { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const index = await res.json(), base = new URL(url, location.href);
+      await openPartitioned(index, name => new UrlSource(new URL(name, base).href), '線上分割圖磚', silent);
+    } else await openArchive(new UrlSource(url));
+  } catch (err) {
+    if (silent) { console.info('未找到預設圖磚', url, err.message); return; }
+    console.error(err); setStatus('error', `無法讀取 ${url}：${err.message}`);
+  }
+}
+$('#fileInput').addEventListener('change', e => { if (e.target.files.length) openLocalFiles(e.target.files); e.target.value = ''; });
+let dragDepth = 0;
+window.addEventListener('dragenter', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { dragDepth++; document.body.classList.add('dropping'); } });
+window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dropping'); } });
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => {
+  e.preventDefault(); dragDepth = 0; document.body.classList.remove('dropping');
+  const fs = [...(e.dataTransfer?.files || [])].filter(x => /\.(pmtiles|json)$/i.test(x.name));
+  if (fs.length) openLocalFiles(fs); else toast('請拖曳 .pmtiles 檔（分割圖磚可一次拖曳全部檔案與 index.json）');
+});
+if (params.get('pmtiles')) openRemote(params.get('pmtiles'), false);
+else if (CONFIG.PMTILES_URL && location.protocol !== 'file:') openRemote(CONFIG.PMTILES_URL, true);
+
+/* ---------- 目前畫面的圖磚 ---------- */
+async function viewTiles(onProgress) {
+  const h = state.archive.header, z = map.getZoom(), dz = clampZ(z, h), f = Math.pow(2, z - dz), pb = map.getPixelBounds();
+  const tiles = await loadTileSet(state.store, dz, pb.min.x / f, pb.min.y / f, pb.max.x / f, pb.max.y / f, onProgress);
+  return { tiles, dz };
+}
+
+/* ---------- 確定範圍 ---------- */
+const btnConfirm = $('#btnConfirm');
+const interactions = () => [map.dragging, map.scrollWheelZoom, map.doubleClickZoom, map.boxZoom, map.keyboard, map.touchZoom].filter(Boolean);
+function lockRange() {
+  state.locked = true;
+  interactions().forEach(h => h.disable());
+  slider.disabled = true; zoombox.classList.add('locked'); wrap.classList.add('locked');
+  btnConfirm.textContent = '解除範圍'; btnConfirm.setAttribute('aria-pressed', 'true');
+  const sec = $('#annoSec'); sec.hidden = false; sec.classList.remove('closed');
+  setDrawer(true);
+  setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+  updateZoomUI();
+  restyleAll();
+  scanAnnoLayers();
+  toast('範圍已鎖定。可在「4. 註記」加入文字，調整完成後按「輸出圖檔」。');
+}
+function unlockRange() {
+  state.locked = false;
+  interactions().forEach(h => h.enable());
+  slider.disabled = false; zoombox.classList.remove('locked'); wrap.classList.remove('locked');
+  btnConfirm.textContent = '確定範圍'; btnConfirm.setAttribute('aria-pressed', 'false');
+  updateZoomUI();
+  restyleAll();
+  requestVectorRedraw(true);
+}
+btnConfirm.addEventListener('click', () => (state.locked ? unlockRange() : lockRange()));
+
+/* ---------- 註記 ---------- */
+const annoRows = $('#annoRows');
+async function scanAnnoLayers() {
+  if (!state.store) { annoRows.innerHTML = '<p class="note">請先載入 .pmtiles 檔，才能讀取註記圖層。</p>'; return; }
+  annoRows.innerHTML = '<p class="note">正在搜尋此範圍內的註記圖層…</p>';
+  let tiles;
+  try { ({ tiles } = await viewTiles()); } catch (err) { annoRows.innerHTML = `<p class="note">讀取失敗：${err.message}</p>`; return; }
+  const found = new Map();
+  for (const t of tiles) {
+    if (!t.layers) continue;
+    for (const name in t.layers) {
+      if (KNOWN_VECTOR.has(name)) continue;
+      const fs = layerFeatures(t.layers[name]);
+      if (!fs.length || fs[0].type !== 1 || pget(fs[0].props, 'textstring') === undefined) continue;
+      found.set(name, (found.get(name) || 0) + fs.filter(f => f.parts.some(p => p[0] >= 0 && p[1] >= 0 && p[0] < f.ext && p[1] < f.ext)).length);
+    }
+  }
+  state.annoLayers = [...found].map(([name, count]) => ({ name, count, cls: annoClassOf(name) }));
+  renderAnnoRows();
+}
+function renderAnnoRows() {
+  annoRows.innerHTML = '';
+  if (!state.annoLayers.length) { annoRows.innerHTML = '<p class="note">此範圍內找不到含 TextString 欄位的註記圖層。</p>'; return; }
+  const groups = [];
+  for (const cls of CONFIG.ANNO_CLASSES) {
+    const ls = state.annoLayers.filter(l => l.cls === cls);
+    groups.push({ key: 'c' + cls, title: `第${CN_NUM[cls] || cls}類註記`, layers: ls });
+  }
+  const others = state.annoLayers.filter(l => !CONFIG.ANNO_CLASSES.includes(l.cls));
+  for (const l of others) groups.push({ key: 'n:' + l.name, title: l.name, layers: [l], other: true });
+  let shownOther = false;
+  for (const g of groups) {
+    if (g.other && !shownOther) { shownOther = true; const p = document.createElement('p'); p.className = 'note'; p.innerHTML = '<b>其他註記圖層</b>（未對應到上述類別；可在程式 CONFIG.ANNO_LAYER_CLASS 指定）'; annoRows.appendChild(p); }
+    const row = document.createElement('div'); row.className = 'row anno';
+    const cid = 'anno_' + g.key.replace(/[^\w]/g, '_');
+    const count = g.layers.reduce((s, l) => s + l.count, 0);
+    row.innerHTML = `<input type="checkbox" id="${cid}"><label for="${cid}">${g.title}<span class="raw"></span></label><small></small>`;
+    row.querySelector('.raw').textContent = g.layers.length ? g.layers.map(l => l.name).join('、') : '此範圍內無此類圖層';
+    row.querySelector('small').textContent = g.layers.length ? `${count} 筆` : '';
+    const chk = row.querySelector('input');
+    chk.disabled = !g.layers.length;
+    chk.checked = state.annoClassOn.has(g.key);
+    const small = row.querySelector('small');
+    const load = async () => {
+      chk.disabled = true;
+      const r = await addAnnoGroup(g.key, g.layers.map(l => l.name));
+      chk.disabled = false;
+      small.textContent = r.dup ? `顯示 ${r.added} 筆｜${r.dup} 筆與建物、交通名稱重複未顯示` : `顯示 ${r.added} 筆`;
+    };
+    chk.addEventListener('change', async () => {
+      if (chk.checked) { state.annoClassOn.add(g.key); await load(); }
+      else { state.annoClassOn.delete(g.key); removeAnnoGroup(g.key); small.textContent = count ? `${count} 筆` : ''; }
+    });
+    annoRows.appendChild(row);
+    if (chk.checked) load();
+  }
+}
+function estimateFontPx(props, text, lat) {
+  const bw = numOrNull(pget(props, 'box_w_m')), bh = numOrNull(pget(props, 'box_h_m'));
+  const ang = Math.abs((numOrNull(pget(props, 'angle')) || 0) * Math.PI / 180);
+  const n = Math.max(1, [...String(text)].length);
+  // 字級一律採預設值（與確定範圍前的建物、交通名稱相同）；註記方框只用來判斷是否為直書
+  const vertical = !!(bw && bh) && n > 1 && ang < 0.05 && bh > bw * 1.6;
+  return { px: CONFIG.LABEL_FONT_PX, vertical };
+}
+/* 註記與建物、交通名稱的重複比對 */
+function normName(t) {
+  return String(t || '').normalize('NFKC').replace(/[\s·・．.、，,（）()「」]/g, '').replace(/臺/g, '台')
+    .replace(/國民小學/g, '國小').replace(/國民中學/g, '國中').replace(/高級中學/g, '高中').replace(/高級職業學校/g, '高職')
+    .replace(/火車站/g, '車站').replace(/郵政/g, '郵');
+}
+function sameName(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return Math.min(a.length, b.length) >= 2 && (a.includes(b) || b.includes(a));
+}
+function dedupeRefs() {
+  const refs = [];
+  for (const it of state.pts.values())
+    if (it.text && state.enabled.has(it.layer)) refs.push({ n: normName(it.text), lat: it.plat ?? it.lat, lng: it.plng ?? it.lng });
+  if (CONFIG.ANNO_DEDUPE_DELETED) for (const d of state.ptDeletedInfo.values()) refs.push({ n: normName(d.text), lat: d.lat, lng: d.lng });
+  return refs.filter(r => r.n);
+}
+function isDuplicateName(text, lat, lng, refs) {
+  const n = normName(text); if (!n) return false;
+  const R = CONFIG.ANNO_DEDUPE_RADIUS_M, kx = 111320 * Math.cos(lat * Math.PI / 180);
+  return refs.some(r => sameName(n, r.n) && Math.hypot((r.lng - lng) * kx, (r.lat - lat) * 110540) <= R);
+}
+async function addAnnoGroup(key, names) {
+  if (!state.store) return { added: 0, dup: 0 };
+  const cls = key.startsWith('c') ? +key.slice(1) : annoClassOf(key.slice(2));
+  const refs = CONFIG.ANNO_DEDUPE_CLASSES.includes(cls) ? dedupeRefs() : [];
+  let dup = 0;
+  busy('讀取註記…');
+  const { tiles, dz } = await viewTiles();
+  const b = map.getBounds(); let added = 0;
+  const existing = new Set([...state.annos.values()].map(a => a.srcId));
+  for (const t of tiles) {
+    if (!t.layers) continue;
+    for (const name of names) {
+      const Ly = t.layers[name]; if (!Ly) continue;
+      for (const f of layerFeatures(Ly)) {
+        const text = pget(f.props, 'textstring');
+        if (text === undefined || text === null || String(text).trim() === '') continue;
+        for (const p of f.parts) {
+          if (p[0] < 0 || p[1] < 0 || p[0] >= f.ext || p[1] >= f.ext) continue;
+          const [lat, lng] = MERC.unproject(t.x * 256 + p[0] / f.ext * 256, t.y * 256 + p[1] / f.ext * 256, dz);
+          if (!b.contains([lat, lng]) || inRadarMask(lat, lng)) continue;
+          const srcId = String(pget(f.props, 'anno_id') ?? `${name}|${text}|${lat.toFixed(6)}|${lng.toFixed(6)}`);
+          if (existing.has(srcId) || state.annoDeleted.has(srcId)) continue;
+          existing.add(srcId);
+          if (refs.length && isDuplicateName(text, lat, lng, refs)) { dup++; continue; }
+          const fz = estimateFontPx(f.props, text, lat);
+          createAnno({ key, srcId, text: String(text).trim(), lat, lng, rot: -(numOrNull(pget(f.props, 'angle')) || 0),
+            fontPx: fz.px, vertical: fz.vertical, family: cssFontFor(pget(f.props, 'fontname')) });
+          added++;
+        }
+      }
+    }
+  }
+  busy('');
+  updateAnnoCount();
+  if (added > 600) toast(`已加入 ${added} 個註記，數量較多，建議放大範圍或刪減。`);
+  return { added, dup };
+}
+function removeAnnoGroup(key) { for (const a of [...state.annos.values()]) if (a.key === key) removeAnno(a, false); updateAnnoCount(); }
+function updateAnnoCount() { $('#annoCount').textContent = state.annos.size ? `${state.annos.size} 個文字方塊` : ''; }
+function normAngle(d) { d = ((d % 360) + 540) % 360 - 180; return Math.round(d); }
+const PT_LABEL_OFFSET = 7;     // 點名稱方塊與點的水平距離（螢幕像素）
+function styleAnno(a) {
+  const sc = state.annoScale;
+  a.box.classList.toggle('bg', !!a.bg);
+  a.box.classList.toggle('restricted', a.kind === 'pt' && !state.locked);
+  if (a.kind === 'sym') {
+    a.box.style.transform = 'translate(-50%,-50%)';
+    const cv = a.box.querySelector('canvas'), c = cv.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+    c.strokeStyle = c.fillStyle = '#000'; c.lineCap = 'round'; c.lineJoin = 'round';
+    (SYMBOLS[a.sym] || SYMBOLS.generic)(c, cv.width / 2, cv.height / 2, 1.15 * 2 * sc);
+    return;
+  }
+  const noname = a.kind === 'pt' && !a.text;
+  a.box.classList.toggle('noname', noname);
+  a.box.style.transform = (a.kind === 'pt' && !noname ? 'translate(0,-50%)' : 'translate(-50%,-50%)') + ` rotate(${a.rot}deg)`;
+  a.box.style.font = `500 ${(a.fontPx * sc).toFixed(1)}px ${a.family}`;
+  a.txt.style.writingMode = a.vertical ? 'vertical-rl' : '';
+  a.txt.textContent = a.text;
+  a.rotBtn.querySelector('em').textContent = normAngle(-a.rot) + '°';
+}
+function allItems() { return [...state.annos.values(), ...[...state.pts.values()].filter(p => p.marker)]; }
+function setActive(a) { for (const o of allItems()) o.box.classList.toggle('is-active', o === a); }
+/** 建立文字方塊。opt.kind：'text'（註記、自訂文字）、'pt'（建物／交通設施名稱）、'sym'（自訂點符號） */
+function createAnno(opt, register = true) {
+  const a = Object.assign({ id: ++state.annoSeq, kind: 'text', rot: 0, bg: state.annoBg, family: FONT_STACK }, opt);
+  const box = document.createElement('div'); box.className = 'anno-box ' + a.kind;
+  box.innerHTML = (a.kind === 'sym' ? '<canvas width="60" height="60"></canvas>' : '<span class="anno-text"></span>')
+    + '<button type="button" class="ah ah-rot" title="拖曳旋轉；點一下輸入角度（逆時針為正）">⟳<em></em></button>'
+    + `<button type="button" class="ah ah-del" title="${a.kind === 'pt' ? '刪除這個點（含名稱）' : '刪除'}">×</button>`
+    + '<button type="button" class="ah ah-move" title="拖曳移動">✥</button>'
+    + '<button type="button" class="ah ah-bg" title="切換白底遮罩">▣</button>';
+  a.box = box; a.txt = box.querySelector('.anno-text') || document.createElement('span'); a.rotBtn = box.querySelector('.ah-rot');
+  styleAnno(a);
+  a.marker = L.marker([a.lat, a.lng], { pane: 'annoPane', interactive: true, keyboard: false, bubblingMouseEvents: false,
+    icon: L.divIcon({ className: 'anno-icon', html: box, iconSize: [0, 0] }) }).addTo(map);
+  L.DomEvent.disableClickPropagation(box); L.DomEvent.disableScrollPropagation(box);
+  box.addEventListener('click', () => setActive(a));
+  const editable = () => !(a.kind === 'pt' && !state.locked);
+  dragHandle(box.querySelector('.ah-move'), () => {
+    if (!editable()) return null;
+    const p0 = map.latLngToContainerPoint([a.lat, a.lng]);
+    return (dx, dy) => { const ll = map.containerPointToLatLng([p0.x + dx, p0.y + dy]); a.lat = ll.lat; a.lng = ll.lng; a.marker.setLatLng(ll); a.moved = true; };
+  });
+  dragHandle(a.rotBtn, (start) => {
+    if (!editable()) return null;
+    const r = box.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const a0 = Math.atan2(start.clientY - cy, start.clientX - cx), r0 = a.rot;
+    return (dx, dy, ev) => {
+      let d = r0 + (Math.atan2(ev.clientY - cy, ev.clientX - cx) - a0) * 180 / Math.PI;
+      a.rot = ev.shiftKey ? Math.round(d / 15) * 15 : Math.round(d); styleAnno(a);
+    };
+  }, () => {
+    if (!editable()) return;
+    const v = prompt('輸入文字角度（度，逆時針為正）', String(normAngle(-a.rot)));
+    if (v !== null && isFinite(parseFloat(v))) { a.rot = -parseFloat(v); styleAnno(a); }
+  });
+  box.querySelector('.ah-bg').addEventListener('click', e => { e.stopPropagation(); a.bg = !a.bg; styleAnno(a); });
+  box.querySelector('.ah-del').addEventListener('click', e => { e.stopPropagation(); if (a.kind === 'pt') deletePoint(a); else removeAnno(a, true); });
+  if (a.kind !== 'sym') {
+    a.txt.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      if (!editable()) { toast('按「確定範圍」後才能修改名稱文字；現在可按 × 刪除這個點'); return; }
+      a.txt.contentEditable = 'true'; a.txt.focus();
+      const sel = window.getSelection(), rg = document.createRange(); rg.selectNodeContents(a.txt); sel.removeAllRanges(); sel.addRange(rg);
+    });
+    a.txt.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); a.txt.blur(); } if (e.key === 'Escape') { a.txt.textContent = a.text; a.txt.blur(); } });
+    a.txt.addEventListener('blur', () => {
+      if (a.txt.contentEditable !== 'true') return;
+      a.txt.contentEditable = 'false';
+      const v = a.txt.textContent.trim();
+      if (!v && a.kind === 'text') removeAnno(a, true); else { a.text = v; styleAnno(a); }
+    });
+  }
+  if (register) state.annos.set(a.id, a);
+  return a;
+}
+function removeAnno(a, byUser) {
+  map.removeLayer(a.marker); state.annos.delete(a.id);
+  if (byUser && a.srcId) state.annoDeleted.add(a.srcId);
+  updateAnnoCount();
+}
+
+/* ---------- 建物、交通設施的點名稱（確定範圍前只能刪除） ---------- */
+function syncPointItems(tiles, dz) {
+  if (state.locked) return;                       // 確定範圍後不再自動增減
+  const want = new Set();
+  const layers = PT_LAYERS.filter(id => state.enabled.has(id));
+  if (tiles && layers.length) {
+    const b = map.getBounds();
+    for (const t of tiles) {
+      if (!t.layers) continue;
+      for (const id of layers) {
+        const Ly = t.layers[id]; if (!Ly) continue;
+        for (const f of layerFeatures(Ly)) for (const p of f.parts) {
+          if (p[0] < 0 || p[1] < 0 || p[0] >= f.ext || p[1] >= f.ext) continue;
+          const key = pointKey(f, t, p, dz);
+          if (state.ptDeleted.has(key)) continue;
+          const [lat, lng] = MERC.unproject(t.x * 256 + p[0] / f.ext * 256, t.y * 256 + p[1] / f.ext * 256, dz);
+          if (!b.contains([lat, lng]) || inRadarMask(lat, lng)) continue;
+          want.add(key);
+          if (!state.pts.has(key)) state.pts.set(key, { key, layer: id, plat: lat, plng: lng, lat, lng, rot: 0, fontPx: CONFIG.LABEL_FONT_PX,
+            text: String(pget(f.props, LABEL_FIELD[id]) ?? '').trim(), bg: false, marker: null });
+        }
+      }
+    }
+  }
+  if (want.size > MAX_PT_BOXES) {
+    for (const it of state.pts.values()) if (it.marker) { map.removeLayer(it.marker); it.marker = null; }
+    if (!ptWarned) { toast(`畫面內有 ${want.size} 個建物／交通點，名稱方塊太多；請放大地圖後再刪除個別的點。`, 4500); ptWarned = true; }
+    return;
+  }
+  ptWarned = false;
+  for (const it of [...state.pts.values()]) {
+    const show = want.has(it.key);
+    if (show && !it.marker) { const { marker, box, txt, rotBtn, ...data } = it; state.pts.set(it.key, createAnno({ ...data, kind: 'pt', id: 'pt:' + it.key, align: 'left' }, false)); }
+    else if (!show && it.marker) { map.removeLayer(it.marker); it.marker = null; }
+  }
+}
+function deletePoint(it) {
+  state.ptDeleted.add(it.key);
+  if (it.text) state.ptDeletedInfo.set(it.key, { text: it.text, lat: it.plat ?? it.lat, lng: it.plng ?? it.lng });
+  if (it.marker) map.removeLayer(it.marker);
+  state.pts.delete(it.key);
+  $('#ptRestore').hidden = false; $('#ptRestore').textContent = `恢復已刪除的點（${state.ptDeleted.size}）`;
+  requestVectorRedraw(true);
+}
+$('#ptRestore').addEventListener('click', () => {
+  state.ptDeleted.clear(); state.ptDeletedInfo.clear(); $('#ptRestore').hidden = true;
+  if (state.locked) toast('已恢復。名稱方塊要在「解除範圍」後才會重新出現。');
+  requestVectorRedraw(true);
+});
+function restyleAll() { for (const a of allItems()) styleAnno(a); }
+function dragHandle(el, begin, onClick) {
+  el.style.touchAction = 'none';
+  el.addEventListener('pointerdown', ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    el.setPointerCapture(ev.pointerId);
+    const sx = ev.clientX, sy = ev.clientY; let moved = false; const apply = begin(ev);
+    const mv = e => { const dx = e.clientX - sx, dy = e.clientY - sy; if (!moved && Math.hypot(dx, dy) < 3) return; moved = true; apply(dx, dy, e); };
+    const up = () => { el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); if (!moved && onClick) onClick(); };
+    el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  });
+}
+map.on('click', e => { setActive(null); if (state.inspect) inspectAt(e.latlng); });
+$('#annoScale').addEventListener('input', e => { state.annoScale = +e.target.value / 100; $('#annoScaleVal').textContent = e.target.value + '%'; restyleAll(); });
+$('#annoBgAll').addEventListener('change', e => { state.annoBg = e.target.checked; for (const a of allItems()) { if (a.kind !== 'sym') a.bg = state.annoBg; } restyleAll(); });
+for (const [k, v] of Object.entries(SYMBOL_LABELS)) { const o = document.createElement('option'); o.value = k; o.textContent = v; $('#symPick').appendChild(o); }
+$('#symAdd').addEventListener('click', () => {
+  const c = map.getCenter();
+  const a = createAnno({ kind: 'sym', sym: $('#symPick').value, text: '', lat: c.lat, lng: c.lng, fontPx: 12 });
+  updateAnnoCount(); setActive(a); toast('已在地圖中央加入「' + SYMBOL_LABELS[a.sym] + '」，拖曳左下角 ✥ 移到想要的位置');
+});
+$('#annoChrome').addEventListener('change', e => document.body.classList.toggle('anno-clean', !e.target.checked));
+$('#annoAdd').addEventListener('click', () => {
+  const c = map.getCenter();
+  const a = createAnno({ key: 'custom', text: '甲', lat: c.lat, lng: c.lng, rot: 0, fontPx: CONFIG.LABEL_FONT_PX, family: FONT_STACK, vertical: false });
+  updateAnnoCount(); setActive(a);
+  setTimeout(() => a.txt.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })), 50);
+});
+$('#annoClear').addEventListener('click', () => {
+  if (state.annos.size && !confirm(`確定刪除全部 ${state.annos.size} 個註記與自訂符號？（建物、交通設施名稱不受影響）`)) return;
+  for (const a of [...state.annos.values()]) removeAnno(a, false);
+  state.annoClassOn.clear(); annoRows.querySelectorAll('input[type=checkbox]').forEach(c => { c.checked = false; });
+});
+
+/* ---------- 查詢屬性 ---------- */
+$('#btnInspect').addEventListener('click', e => {
+  state.inspect = !state.inspect;
+  e.target.setAttribute('aria-pressed', String(state.inspect));
+  mapEl.style.cursor = state.inspect ? 'help' : '';
+  if (state.inspect) toast('點選地圖上的圖徵即可查看屬性（再按一次「查詢屬性」關閉）');
+});
+function segDist(px, py, x0, y0, x1, y1) {
+  const dx = x1 - x0, dy = y1 - y0, L2 = dx * dx + dy * dy;
+  let t = L2 ? ((px - x0) * dx + (py - y0) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - x0 - t * dx, py - y0 - t * dy);
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+async function inspectAt(latlng) {
+  if (!state.store) { toast('請先載入 .pmtiles 檔'); return; }
+  const h = state.archive.header, z = map.getZoom(), dz = clampZ(z, h), f = Math.pow(2, z - dz);
+  const [gx, gy] = MERC.project(latlng.lat, latlng.lng, dz), tx = Math.floor(gx / 256), ty = Math.floor(gy / 256);
+  const layers = await state.store.get(dz, tx, ty);
+  const lx = gx - tx * 256, ly = gy - ty * 256, tol = 7 / f;
+  const want = new Set(); for (const id of enabledVectorIds(state.enabled)) for (const s of DEF[id].src) want.add(s);
+  const html = [];
+  for (const name of Object.keys(layers || {})) {
+    if (want.size && !want.has(name) && KNOWN_VECTOR.has(name)) continue;
+    const Ly = layers[name], sc = 256 / Ly.extent, hits = [];
+    for (const ft of layerFeatures(Ly)) {
+      let hit = false;
+      if (ft.type === 1) hit = ft.parts.some(p => Math.hypot(p[0] * sc - lx, p[1] * sc - ly) <= tol);
+      else if (ft.type === 2) hit = ft.parts.some(p => { for (let i = 2; i < p.length; i += 2) if (segDist(lx, ly, p[i - 2] * sc, p[i - 1] * sc, p[i] * sc, p[i + 1] * sc) <= tol) return true; return false; });
+      else {
+        let inside = false;
+        for (const p of ft.parts) for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+          const yi = p[i + 1] * sc, yj = p[j + 1] * sc, xi = p[i] * sc, xj = p[j] * sc;
+          if ((yi > ly) !== (yj > ly) && lx < (xj - xi) * (ly - yi) / (yj - yi) + xi) inside = !inside;
+        }
+        hit = inside;
+      }
+      if (hit) hits.push(ft);
+    }
+    if (!hits.length) continue;
+    html.push(`<h4>${escapeHtml(name)}${hits.length > 3 ? `（共 ${hits.length} 筆，列出 3 筆）` : ''}</h4>`);
+    for (const ft of hits.slice(0, 3)) {
+      const rows = Object.entries(ft.props).map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`).join('');
+      html.push(`<table>${rows || '<tr><td>（無屬性）</td></tr>'}</table>`);
+    }
+  }
+  L.popup({ maxWidth: 320 }).setLatLng(latlng).setContent(html.join('') || '此處沒有勾選圖層的圖徵').openOn(map);
+}
+
+/* ---------- 輸出圖檔 ---------- */
+$('#btnExport').addEventListener('click', async () => {
+  const ov = $('#exportOverlay'), prog = $('#exportProg'), msg = $('#exportMsg');
+  if (!state.locked) toast('尚未按「確定範圍」，將以目前畫面輸出。');
+  if (!state.store && enabledVectorIds(state.enabled).length) toast('尚未載入 .pmtiles，圖檔只會有方格網與註記。', 4000);
+  ov.hidden = false; prog.value = 0; msg.textContent = '正在讀取圖磚…';
+  try {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const res = await composeExport({
+      z: map.getZoom(), pbMin: map.getPixelBounds().min, size: map.getSize(), store: state.store, header: state.archive && state.archive.header,
+      enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels, legend: state.legendExport, order: state.order,
+      skipPoints: state.ptDeleted,
+      annos: allItems().filter(a => a.kind !== 'pt' || state.enabled.has(a.layer)).map(a => ({ kind: a.kind, sym: a.sym, scale: state.annoScale, lat: a.lat, lng: a.lng, text: a.text, rot: a.rot,
+        fontPx: a.fontPx * state.annoScale, family: a.family, vertical: a.vertical, bg: a.bg, align: a.kind === 'pt' && a.text ? 'left' : 'center', offsetPx: PT_LABEL_OFFSET + 5 })),
+      onProgress: (d, n) => { prog.value = Math.round(d / n * 90); msg.textContent = `正在讀取圖磚 ${d} / ${n}…`; },
+    });
+    msg.textContent = '正在壓縮 PNG…'; prog.value = 95;
+    const blob = await new Promise(r => res.canvas.toBlob(r, 'image/png'));
+    const u8 = pngSetDpi(new Uint8Array(await blob.arrayBuffer()), CONFIG.EXPORT.dpi);
+    const url = URL.createObjectURL(new Blob([u8], { type: 'image/png' }));
+    const d = new Date(), pad = n => String(n).padStart(2, '0');
+    const aEl = document.createElement('a');
+    aEl.href = url; aEl.download = `灰階經建地形圖_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.png`;
+    document.body.appendChild(aEl); aEl.click(); aEl.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    toast(`已輸出 A4 ${res.layout.land ? '橫式' : '直式'}（${res.layout.PW}×${res.layout.PH}，300 dpi），原尺寸列印比例約 1:${res.scale.toLocaleString('en-US')}`, 5000);
+  } catch (err) {
+    console.error(err); toast('輸出失敗：' + err.message, 5000);
+  } finally { ov.hidden = true; }
+});
+
+/* ---------- 版面與縮放把手 ---------- */
+function layout() {
+  const r0 = wrap.getBoundingClientRect();
+  if (!state.userSized) { wrap.style.width = ''; wrap.style.height = Math.max(360, window.innerHeight - r0.top - 6) + 'px'; }
+  const r = wrap.getBoundingClientRect(), mr = mapEl.getBoundingClientRect();
+  const top = Math.max(8, r.top);
+  drawer.style.top = top + 'px'; drawer.style.height = Math.max(240, window.innerHeight - top - 8) + 'px';
+  const dl = drawer.classList.contains('collapsed') ? window.innerWidth - 34 : drawer.getBoundingClientRect().left - 34;
+  zoombox.classList.toggle('compact', Math.min(mr.right, dl) - mr.left < 640);
+  const rightEdge = Math.min(mr.right, dl) - 10;
+  ctrlStack.style.right = 'auto';
+  ctrlStack.style.left = Math.max(mr.left - r.left + 10, rightEdge - r.left - ctrlStack.offsetWidth) + 'px';
+  map.invalidateSize({ pan: false });
+  scheduleOverlays();
+}
+document.querySelectorAll('.rh').forEach(hd => {
+  const mode = hd.dataset.mode;
+  hd.addEventListener('pointerdown', ev => {
+    if (state.locked) return;
+    ev.preventDefault(); hd.setPointerCapture(ev.pointerId);
+    const r = wrap.getBoundingClientRect(), sx = ev.clientX, sy = ev.clientY;
+    const mv = e => {
+      state.userSized = true;
+      if (mode.includes('e')) wrap.style.width = Math.max(420, Math.min(document.documentElement.clientWidth - r.left, r.width + e.clientX - sx)) + 'px';
+      if (mode.includes('s')) wrap.style.height = Math.max(300, r.height + e.clientY - sy) + 'px';
+      layout();
+    };
+    const up = () => { hd.removeEventListener('pointermove', mv); hd.removeEventListener('pointerup', up); requestVectorRedraw(true); };
+    hd.addEventListener('pointermove', mv); hd.addEventListener('pointerup', up);
+  });
+  hd.addEventListener('dblclick', () => { if (state.locked) return; state.userSized = false; layout(); requestVectorRedraw(true); });
+});
+document.querySelectorAll('[data-a4]').forEach(btn => btn.addEventListener('click', () => {
+  if (state.locked) return;
+  const land = btn.dataset.a4 === 'land';
+  const ratio = land ? (210 - 2 * CONFIG.EXPORT.marginMM - CONFIG.EXPORT.footerMM) / (297 - 2 * CONFIG.EXPORT.marginMM)
+                     : (297 - 2 * CONFIG.EXPORT.marginMM - CONFIG.EXPORT.footerMM) / (210 - 2 * CONFIG.EXPORT.marginMM);
+  const r = wrap.getBoundingClientRect(), mr = mapEl.getBoundingClientRect();
+  const padX = r.width - mr.width, padY = r.height - mr.height;
+  const maxW = document.documentElement.clientWidth - r.left - (drawer.classList.contains('collapsed') ? 40 : 0);
+  const maxH = Math.max(300, window.innerHeight - r.top - 6);
+  let w = maxW - padX, h = w * ratio;
+  if (h + padY > maxH) { h = maxH - padY; w = h / ratio; }
+  state.userSized = true;
+  wrap.style.width = Math.round(w + padX) + 'px'; wrap.style.height = Math.round(h + padY) + 'px';
+  layout(); requestVectorRedraw(true);
+  toast(`地圖框已調成 A4 ${land ? '橫' : '直'}式比例；雙擊右下角把手可恢復原大小`);
+}));
+window.addEventListener('resize', () => { if (!state.locked) layout(); else scheduleOverlays(); });
+
+/* ---------- 啟動 ---------- */
+buildRows();
+buildLegend();
+layout();
+updateZoomUI();
+if (window.innerWidth < 900) setDrawer(false);
+})();
+/*APP-END*/
+</script>
 </body>
 </html>
