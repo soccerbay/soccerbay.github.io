@@ -216,6 +216,32 @@ body.anno-clean .anno-box .ah{display:none}
 .leaflet-popup-content h4:first-child{margin-top:0}
 .dropping #mapWrap::after{content:"放開以載入 .pmtiles 檔";position:absolute;inset:0;z-index:20;display:grid;place-items:center;background:rgba(36,87,127,.18);border:3px dashed var(--survey);font-size:22px;color:#17324a}
 
+
+/* ---------- 快速導覽 ---------- */
+.tour{position:fixed;inset:0;z-index:4000}
+.tour[hidden]{display:none}
+.tour-block{position:absolute;inset:0;background:transparent}
+.tour-block.dim{background:rgba(15,25,35,.55)}
+.tour-hole{position:absolute;border-radius:8px;box-shadow:0 0 0 9999px rgba(15,25,35,.55);outline:3px solid #f2b632;outline-offset:2px;pointer-events:none;transition:left .2s,top .2s,width .2s,height .2s}
+.tour-hole[hidden]{display:none}
+.tour-card{position:absolute;width:min(400px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;padding:16px 18px 14px;background:#fff;border-radius:10px;box-shadow:0 12px 36px rgba(0,0,0,.3);font-size:15px;line-height:1.6;color:var(--ink)}
+.tour-card.wide{width:min(520px,calc(100vw - 24px))}
+.tour-card .tour-sec{font-size:12px;color:var(--muted);letter-spacing:.05em}
+.tour-card h2{margin:2px 0 8px;font-size:19px;color:#17324a}
+.tour-card ul{margin:0 0 10px;padding-left:1.2em}
+.tour-card li{margin:3px 0}
+.tour-card p{margin:0 0 10px}
+.tour-card video{display:block;width:100%;margin:4px 0 10px;border:1px solid var(--rule);border-radius:6px;background:#f2f5f8}
+.tour-card .tour-novideo{padding:18px;margin:4px 0 10px;border:1px dashed var(--rule);border-radius:6px;color:var(--muted);font-size:13px;text-align:center}
+.tour-card .tour-close{position:absolute;top:8px;right:10px;width:30px;height:30px;border:0;background:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+.tour-card .tour-close:hover{color:var(--ink)}
+.tour-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--rule-soft)}
+.tour-foot label{display:flex;align-items:center;gap:6px;margin-right:auto;font-size:13px;color:var(--muted);cursor:pointer}
+.tour-foot .tour-count{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tour-foot button{height:32px;padding:0 14px;border:1px solid #9fb0bf;border-radius:4px;background:#fff;color:var(--ink);font:inherit;font-size:14px;cursor:pointer}
+.tour-foot button.primary{background:var(--go);border-color:var(--go);color:#fff}
+.tour-foot button:disabled{opacity:.4;cursor:default}
+@media (prefers-reduced-motion: reduce){ .tour-hole{transition:none} }
 @media (prefers-reduced-motion: reduce){ .drawer,#toast,.anno-box .ah{transition:none} }
 @media (max-width:760px){
   .topbar h1{font-size:21px}
@@ -233,6 +259,9 @@ body.anno-clean .anno-box .ah{display:none}
     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.5h5l1.5 1.5h6.5v8.5h-13z" fill="#f2b632" stroke="#b07a0c"/></svg>
     載入本機 .pmtiles 檔<input type="file" id="fileInput" accept=".pmtiles,.json" multiple hidden>
   </label>
+  <button class="hbtn" type="button" id="btnHelp" title="重新觀看快速導覽">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="#24577f"/><path d="M6.1 6.2a2 2 0 1 1 2.6 1.9c-.5.2-.7.5-.7 1v.4" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".9" fill="#fff"/></svg>
+    使用說明</button>
 </header>
 
 
@@ -280,10 +309,10 @@ body.anno-clean .anno-box .ah{display:none}
       <select id="countySel" aria-label="移動到縣市"><option value="">縣市</option></select>
       <select id="townSel" aria-label="移動到鄉鎮市區" disabled><option value="">鄉鎮市區</option></select>
     </div>
-    <div class="dt-row a4btns" role="group" aria-label="把地圖框調成 A4 比例">
-      <span>地圖框</span>
-      <button type="button" data-a4="land" title="把地圖框調成 A4 橫式的比例">A4 橫</button>
-      <button type="button" data-a4="port" title="把地圖框調成 A4 直式的比例">A4 直</button>
+    <div class="dt-row a4btns" role="group" aria-label="把地圖版面調成 A4 比例">
+      <span>地圖版面</span>
+      <button type="button" data-a4="land" title="把地圖版面調成 A4 橫式的比例">A4 橫</button>
+      <button type="button" data-a4="port" title="把地圖版面調成 A4 直式的比例">A4 直</button>
     </div>
     <div class="dt-row dt-actions" role="group" aria-label="確定範圍與輸出">
       <button class="abtn confirm" type="button" id="btnConfirm" aria-pressed="false">確定範圍</button>
@@ -335,6 +364,22 @@ body.anno-clean .anno-box .ah{display:none}
   </div>
 </aside>
 
+<div class="tour" id="tour" hidden>
+  <div class="tour-block" id="tourBlock"></div>
+  <div class="tour-hole" id="tourHole" hidden></div>
+  <section class="tour-card" id="tourCard" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+    <button type="button" class="tour-close" id="tourClose" aria-label="關閉導覽">×</button>
+    <div class="tour-sec" id="tourSec"></div>
+    <h2 id="tourTitle"></h2>
+    <div id="tourBody"></div>
+    <div class="tour-foot">
+      <label><input type="checkbox" id="tourHide">下次不再顯示</label>
+      <span class="tour-count" id="tourCount"></span>
+      <button type="button" id="tourPrev">上一步</button>
+      <button type="button" class="primary" id="tourNext">下一步</button>
+    </div>
+  </section>
+</div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div class="overlay" id="exportOverlay" hidden><div class="card"><div id="exportMsg">正在產生 A4 圖檔…</div><progress id="exportProg" max="100" value="0"></progress></div></div>
 
@@ -1511,7 +1556,7 @@ let ptWarned = false;
 (function loadPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem(PREF_KEY) || 'null'); if (!p) return;
-    if (Array.isArray(p.enabled)) state.enabled = new Set(p.enabled.filter(id => DEF[id]));
+    // 不還原上次勾選的圖層：每次開啟都從未勾選開始，避免一載入就讀取大量圖磚而卡頓（方格網仍預設顯示）
     if (p.grays) for (const id in p.grays) if (DEF[id]) state.grays[id] = +p.grays[id];
     if (p.base) state.base = p.base;
     state.order = mergeOrder(p.order);
@@ -2559,11 +2604,153 @@ document.querySelectorAll('[data-a4]').forEach(btn => btn.addEventListener('clic
   state.userSized = true;
   wrap.style.width = Math.round(w + padX) + 'px'; wrap.style.height = Math.round(h + padY) + 'px';
   layout(); requestVectorRedraw(true);
-  toast(`地圖框已調成 A4 ${land ? '橫' : '直'}式比例；雙擊右下角把手可恢復原大小`);
+  toast(`地圖版面已調成 A4 ${land ? '橫' : '直'}式比例；雙擊右下角把手可恢復原大小`);
 }));
 window.addEventListener('resize', () => { if (!state.locked) layout(); else scheduleOverlays(); });
 
 /* ---------- 啟動 ---------- */
+
+/* ---------- 快速導覽（第一次開啟時自動顯示；標題列「使用說明」可重新觀看） ---------- */
+const TOUR_VERSION = '1.0';                  // 新增重要功能時調高版本號，已勾「不再顯示」的使用者也會再看到
+const TOUR_KEY = 'gray-topo-tour';
+const TOUR_VIDEO_DIR = 'tour/';
+const dtRow = sel => () => { const el = $(sel); return el && (el.closest('.dt-row') || el); };
+const TOUR_STEPS = [
+  { sec: '歡迎', title: '歡迎使用灰階經建地形圖產生器',
+    text: ['這是一個可供老師自由挑選 1/25000 經建版地形圖中的圖層，並生成可用油印機印製的黑白地形圖產生器，希望可以有效解決教學或命題時地圖不清楚的問題。'] },
+  { sec: '1. 底圖與地圖操作', title: '底圖', target: dtRow('#baseSelect'),
+    text: ['此選單可以任選一個地圖做為底圖，也可完全關閉。'] },
+  { sec: '1. 底圖與地圖操作', title: '縮放', target: dtRow('#zoomSlider'),
+    text: ['縮放滑桿和滑鼠滾輪都可以調整地圖比例尺。'] },
+  { sec: '1. 底圖與地圖操作', title: '捷徑', target: dtRow('#btnTaiwan'),
+    text: ['用選單快速聚焦地圖至行政區，也可一鍵回到全台。'] },
+  { sec: '1. 底圖與地圖操作', title: 'A4 橫式／直式', target: () => $('.drawer-top .a4btns'),
+    text: ['可把地圖版型調整為橫式或直式。'] },
+  { sec: '1. 底圖與地圖操作', title: '調整地圖大小', target: () => $('#mapWrap .rh-se'), pad: 14,
+    text: ['滑鼠拖曳地圖右下角或右側可調整地圖寬度或高度。'] },
+  { sec: '2. 建物符號', title: '新增圖資、刪除點位、調整灰階', target: () => $('.sec[data-group="point"]'), video: 'tour1.mp4',
+    text: ['勾選任何需要的資料，該圖層即顯示在地圖上。',
+           '勾選建物符號和交通設施，會預先出現點位名稱，若不需要該地點，請按右上角 × 刪除，刪除的點可回復。',
+           '所有圖層都有獨立的灰階滑桿可以調整灰階值。'] },
+  { sec: '3. 確定範圍與註記模式', title: '確定範圍與註記模式', target: () => $('#btnConfirm'), video: 'tour2.mp4',
+    text: ['整張地圖準備就緒後，點選「確定範圍」，進入註記模式。',
+           '建物和交通設施的文字可以用滑鼠平移、旋轉、加白底遮罩，雙擊可修改文字內容。',
+           '註記階段仍然可以直接刪除任何點位，也可以加入額外的點位和文字方塊。'] },
+  { sec: '4. 各類註記與字級', title: '各類註記與字級', video: 'tour3.mp4',
+    text: ['地圖中可能有未顯示的隱藏註記，可切換是否顯示，若顯示會有字級滑桿可調整字體大小。'] },
+  { sec: '5. 圖例', title: '圖例', target: () => $('#legend'), video: 'tour4.mp4',
+    text: ['勾選的圖層會列入圖例中，雙擊文字方塊即可修改文字內容。',
+           '拖曳 ⠿ 符號可以調整地圖中圖層呈現的順序。',
+           '若不需要圖例，把「輸出圖檔時附上圖例」取消即可。'] },
+  { sec: '6. 字級滑桿', title: '字級滑桿', video: 'tour5.mp4',
+    text: ['整張地圖的所有文字都有獨立的字級滑桿，方便微調各種註記的大小。'] },
+  { sec: '7. 輸出圖檔', title: '輸出圖檔', target: () => $('#btnExport'),
+    text: ['點選「輸出圖檔」，即可下載 300 dpi 的 .png 檔以供使用。'] },
+];
+const tour = { i: 0, open: false };
+function tourHidden() {
+  try { const t = JSON.parse(localStorage.getItem(TOUR_KEY) || 'null'); return !!(t && t.hidden && t.version === TOUR_VERSION); }
+  catch (e) { return false; }
+}
+function setTourHidden(hide) {
+  try { if (hide) localStorage.setItem(TOUR_KEY, JSON.stringify({ hidden: true, version: TOUR_VERSION })); else localStorage.removeItem(TOUR_KEY); }
+  catch (e) { /* 忽略 */ }
+}
+function tourTarget(step) {
+  if (!step.target || window.innerWidth < 700) return null;     // 小螢幕一律置中顯示
+  const el = step.target();
+  if (!el || el.offsetParent === null) return null;
+  return el;
+}
+function placeTour() {
+  if (!tour.open) return;
+  const step = TOUR_STEPS[tour.i], card = $('#tourCard'), hole = $('#tourHole'), block = $('#tourBlock');
+  const el = tourTarget(step), vw = window.innerWidth, vh = window.innerHeight, m = 12;
+  const cw = card.offsetWidth, ch = card.offsetHeight;
+  if (!el) {
+    hole.hidden = true; block.classList.add('dim');
+    card.style.left = Math.max(m, (vw - cw) / 2) + 'px'; card.style.top = Math.max(m, (vh - ch) / 2) + 'px';
+    return;
+  }
+  block.classList.remove('dim'); hole.hidden = false;
+  const pad = step.pad || 6, r = el.getBoundingClientRect();
+  const h = { left: r.left - pad, top: r.top - pad, width: r.width + 2 * pad, height: r.height + 2 * pad };
+  Object.assign(hole.style, { left: h.left + 'px', top: h.top + 'px', width: h.width + 'px', height: h.height + 'px' });
+  // 說明框依序嘗試放在目標的左、右、下、上，都放不下就置中
+  const gap = 14, opts = [
+    [h.left - gap - cw, h.top + h.height / 2 - ch / 2, h.left - gap - cw >= m],
+    [h.left + h.width + gap, h.top + h.height / 2 - ch / 2, h.left + h.width + gap + cw <= vw - m],
+    [h.left + h.width / 2 - cw / 2, h.top + h.height + gap, h.top + h.height + gap + ch <= vh - m],
+    [h.left + h.width / 2 - cw / 2, h.top - gap - ch, h.top - gap - ch >= m],
+  ];
+  const pick = opts.find(o => o[2]) || [(vw - cw) / 2, (vh - ch) / 2];
+  card.style.left = Math.min(Math.max(m, pick[0]), vw - cw - m) + 'px';
+  card.style.top = Math.min(Math.max(m, pick[1]), vh - ch - m) + 'px';
+}
+function renderTour() {
+  const step = TOUR_STEPS[tour.i], n = TOUR_STEPS.length;
+  $('#tourSec').textContent = step.sec;
+  $('#tourTitle').textContent = step.title;
+  const body = $('#tourBody'); body.innerHTML = '';
+  if (step.video) {
+    const v = document.createElement('video');
+    Object.assign(v, { src: TOUR_VIDEO_DIR + step.video, muted: true, loop: true, autoplay: true, playsInline: true, preload: 'auto' });
+    v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('aria-label', step.title + '示範影片');
+    v.addEventListener('loadedmetadata', placeTour);
+    v.addEventListener('error', () => {
+      const d = document.createElement('div'); d.className = 'tour-novideo'; d.textContent = '（示範影片 ' + step.video + ' 無法載入）';
+      v.replaceWith(d); placeTour();
+    });
+    body.appendChild(v);
+  }
+  const lines = step.text;
+  if (lines.length === 1) { const p = document.createElement('p'); p.textContent = lines[0]; body.appendChild(p); }
+  else { const ul = document.createElement('ul'); lines.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }); body.appendChild(ul); }
+  $('#tourCard').classList.toggle('wide', !!step.video);
+  $('#tourCount').textContent = `${tour.i + 1} / ${n}`;
+  $('#tourPrev').disabled = tour.i === 0;
+  $('#tourNext').textContent = tour.i === n - 1 ? '完成' : '下一步';
+  // 目標在圖層選單裡：先展開選單，並捲到看得到的位置
+  const el = step.target && step.target();
+  if (el && drawer.contains(el) && drawer.classList.contains('collapsed') && window.innerWidth >= 700) setDrawer(true);
+  if (el && el.closest('.drawer-body')) el.scrollIntoView({ block: 'nearest' });
+  requestAnimationFrame(placeTour);
+  setTimeout(placeTour, 320);                  // 選單展開動畫結束後再對位一次
+  $('#tourNext').focus();
+}
+function openTour(start = 0) {
+  tour.i = start; tour.open = true;
+  $('#tourHide').checked = tourHidden();
+  $('#tour').hidden = false;
+  renderTour();
+}
+function closeTour() {
+  if (!tour.open) return;
+  tour.open = false;
+  setTourHidden($('#tourHide').checked);
+  $('#tourBody').innerHTML = '';               // 停止播放影片
+  $('#tour').hidden = true;
+  $('#btnHelp').focus();
+}
+function tourGo(d) {
+  const j = tour.i + d;
+  if (j < 0) return;
+  if (j >= TOUR_STEPS.length) { closeTour(); return; }
+  tour.i = j; renderTour();
+}
+$('#tourNext').addEventListener('click', () => tourGo(1));
+$('#tourPrev').addEventListener('click', () => tourGo(-1));
+$('#tourClose').addEventListener('click', closeTour);
+$('#btnHelp').addEventListener('click', () => openTour(0));
+document.addEventListener('keydown', e => {
+  if (!tour.open) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeTour(); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); tourGo(1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); tourGo(-1); }
+});
+window.addEventListener('resize', () => { if (tour.open) placeTour(); });
+if (!tourHidden()) setTimeout(() => openTour(0), 600);
+
 buildRows();
 buildFontRows();
 buildLegend();
