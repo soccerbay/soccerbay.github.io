@@ -22,9 +22,9 @@ button,input,select{font-family:inherit}
 :focus-visible{outline:3px solid #f2a900;outline-offset:2px}
 
 /* ---------- 標題列 ---------- */
-.topbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;padding:10px 16px;background:var(--sky);border-bottom:1px solid var(--sky-edge)}
-.topbar h1{margin:0 auto 0 0;font-size:27px;font-weight:700;letter-spacing:.14em;color:#17324a}
-.status{display:flex;align-items:center;gap:8px;min-height:38px;padding:6px 12px;background:#fff;border:1px solid var(--sky-edge);border-radius:6px;font-size:14px;max-width:min(560px,100%)}
+.topbar{display:flex;align-items:center;flex-wrap:nowrap;gap:10px 14px;padding:10px 16px;background:var(--sky);border-bottom:1px solid var(--sky-edge)}
+.topbar h1{margin:0 auto 0 0;font-size:27px;font-weight:700;letter-spacing:.14em;color:#17324a;flex:none;white-space:nowrap}
+.status{min-width:0;flex:0 1 auto;display:flex;align-items:center;gap:8px;min-height:38px;padding:6px 12px;background:#fff;border:1px solid var(--sky-edge);border-radius:6px;font-size:14px;max-width:min(560px,100%)}
 .status .dot{width:14px;height:14px;border-radius:3px;background:#9aa7b2;flex:none;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700}
 .status[data-state="ok"] .dot{background:#2f8f3a}
 .status[data-state="ok"] .dot::after{content:"✓"}
@@ -32,7 +32,7 @@ button,input,select{font-family:inherit}
 .status[data-state="error"] .dot{background:var(--alert)}
 .status[data-state="error"] .dot::after{content:"!"}
 .status span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hbtn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border:1px solid var(--sky-edge);border-radius:6px;background:#fff;color:#17324a;font-size:14px;cursor:pointer}
+.hbtn{flex:none;display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border:1px solid var(--sky-edge);border-radius:6px;background:#fff;color:#17324a;font-size:14px;cursor:pointer}
 .hbtn:hover{background:var(--survey-soft)}
 .hbtn svg{width:16px;height:16px;flex:none}
 
@@ -281,7 +281,7 @@ body.anno-clean .anno-box .ah{display:none}
       <select id="townSel" aria-label="移動到鄉鎮市區" disabled><option value="">鄉鎮市區</option></select>
     </div>
     <div class="dt-row a4btns" role="group" aria-label="把地圖框調成 A4 比例">
-      <span>地圖版型</span>
+      <span>地圖框</span>
       <button type="button" data-a4="land" title="把地圖框調成 A4 橫式的比例">A4 橫</button>
       <button type="button" data-a4="port" title="把地圖框調成 A4 直式的比例">A4 直</button>
     </div>
@@ -1553,11 +1553,15 @@ const clampZ = (z, h) => Math.max(h.minZoom, Math.min(h.maxZoom, Math.round(z)))
 
 /* ---------- 地圖 ---------- */
 const startView = state.view || CONFIG.START_VIEW;
+// 先把版面調成最終狀態，再建立地圖並對準台灣：避免建立後地圖框改變大小，造成畫面先偏一邊再跳回中央
+if (window.innerWidth < 900) { drawer.classList.add('collapsed'); $('#drawerTab').setAttribute('aria-expanded', 'false'); }
+setCoordMarginVars();
+sizeWrap();
 const map = L.map(mapEl, {
   zoomControl: false, minZoom: CONFIG.MAP_MIN_ZOOM, maxZoom: CONFIG.MAP_MAX_ZOOM,
   zoomSnap: CONFIG.ZOOM_SNAP, zoomDelta: CONFIG.ZOOM_SNAP ? 1 : CONFIG.ZOOM_STEP,
   wheelPxPerZoomLevel: CONFIG.ZOOM_SNAP ? 90 : 120, wheelDebounceTime: CONFIG.ZOOM_SNAP ? 40 : 20,
-  touchZoom: true, bounceAtZoomLimits: false, maxBounds: L.latLngBounds([20.2, 116.6], [27.4, 123.8]), maxBoundsViscosity: 0.6,
+  touchZoom: true, bounceAtZoomLimits: false, maxBounds: L.latLngBounds([18.0, 113.5], [29.0, 127.5]), maxBoundsViscosity: 0.6,
 }).fitBounds(TAIWAN_BOUNDS, { padding: [12, 12] });     // 每次開啟都顯示台灣全島
 map.attributionControl.setPrefix(false);
 // Safari（Mac 觸控板）的雙指縮放送出 gesture 事件而非滾輪，預設會放大整個網頁；改為縮放地圖。
@@ -2360,10 +2364,16 @@ const FONT_CATS = [
 ];
 function fs(key) { return state.fontScale[key] || 1; }
 /** 地圖外框邊界依 TM2 座標字級加寬；地圖本身大小不變（確定範圍後也不會改到範圍） */
-function applyCoordMargins() {
+/** 依 TM2 座標字級設定地圖外框的留白（純 CSS，建立地圖之前也能呼叫） */
+function setCoordMarginVars() {
   const f = fs('coord'), side = Math.max(48, Math.ceil(12 * f * 2.6 + 12)), tb = Math.max(30, Math.ceil(12 * f * 1.25 + 14));
-  const mr = mapEl.getBoundingClientRect(), root = document.documentElement.style;
+  const root = document.documentElement.style;
   root.setProperty('--mL', side + 'px'); root.setProperty('--mR', side + 'px'); root.setProperty('--mT', tb + 'px'); root.setProperty('--mB', tb + 'px');
+  return { side, tb };
+}
+function applyCoordMargins() {
+  const mr = mapEl.getBoundingClientRect();
+  const { side, tb } = setCoordMarginVars();
   if (state.locked || state.userSized) { wrap.style.width = Math.round(mr.width + 2 * side) + 'px'; wrap.style.height = Math.round(mr.height + 2 * tb) + 'px'; }
   layout();
 }
@@ -2501,13 +2511,16 @@ $('#btnExport').addEventListener('click', async () => {
 function mapRightLimit() {
   return drawer.classList.contains('collapsed') ? window.innerWidth - 42 : window.innerWidth - drawer.offsetWidth - 42;
 }
-function layout() {
+/** 只計算地圖框大小（不碰地圖物件），建立地圖之前也能呼叫 */
+function sizeWrap() {
+  if (state.locked) return;               // 確定範圍後不改變地圖大小，否則會改到已確定的範圍
   const r0 = wrap.getBoundingClientRect();
-  if (!state.locked) {                    // 確定範圍後不改變地圖大小，否則會改到已確定的範圍
-    const maxW = Math.max(420, mapRightLimit() - r0.left);
-    if (!state.userSized) { wrap.style.width = maxW + 'px'; wrap.style.height = Math.max(360, window.innerHeight - r0.top - 6) + 'px'; }
-    else if (r0.width > maxW) wrap.style.width = maxW + 'px';
-  }
+  const maxW = Math.max(420, mapRightLimit() - r0.left);
+  if (!state.userSized) { wrap.style.width = maxW + 'px'; wrap.style.height = Math.max(360, window.innerHeight - r0.top - 6) + 'px'; }
+  else if (r0.width > maxW) wrap.style.width = maxW + 'px';
+}
+function layout() {
+  sizeWrap();
   const r = wrap.getBoundingClientRect();
   const top = Math.max(8, r.top);
   drawer.style.top = top + 'px'; drawer.style.height = Math.max(240, window.innerHeight - top - 8) + 'px';
@@ -2555,10 +2568,8 @@ buildRows();
 buildFontRows();
 buildLegend();
 layout();
-if (fs('coord') !== 1) applyCoordMargins();
 map.fitBounds(TAIWAN_BOUNDS, { padding: [12, 12], animate: false });   // 版面定案後再對一次台灣全島
 updateZoomUI();
-if (window.innerWidth < 900) setDrawer(false);
 })();
 /*APP-END*/
 </script>
