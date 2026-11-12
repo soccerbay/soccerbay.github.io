@@ -64,10 +64,6 @@ button,input,select{font-family:inherit}
 .rh-se:hover{background-color:rgba(36,87,127,.12)}
 #mapWrap.locked .rh{display:none}
 
-.ctrlstack{position:absolute;z-index:6;top:calc(var(--mT) + 10px);right:calc(var(--mR) + 10px);display:flex;flex-direction:column;align-items:flex-end;gap:8px}
-.zoombox,.actbox,.basebox{box-sizing:border-box;height:46px;display:flex;align-items:center;gap:10px;padding:0 12px;background:rgba(255,255,255,.95);border:1px solid #b9c4cd;border-radius:6px;font-family:var(--font);font-size:15px;line-height:1.2;box-shadow:0 1px 4px rgba(0,0,0,.12)}
-.basebox{position:absolute;z-index:6;top:calc(var(--mT) + 10px);left:calc(var(--mL) + 10px);gap:6px}
-.basebox select{height:30px;padding:0 6px;line-height:1.2;border:1px solid #9fb0bf;border-radius:4px;background:#fff;color:var(--ink);font:inherit;font-size:15px;cursor:pointer}
 .actbox{gap:8px}
 .abtn{height:30px;padding:0 16px;line-height:1.2;border:1px solid #9fb0bf;border-radius:4px;background:#fff;color:var(--ink);font:inherit;font-size:15px;cursor:pointer;white-space:nowrap}
 .abtn:hover{background:var(--survey-soft)}
@@ -78,13 +74,9 @@ button,input,select{font-family:inherit}
 .zoombox input{width:130px;accent-color:var(--survey)}
 .zoombox .zval{font-variant-numeric:tabular-nums;min-width:22px;font-weight:700}
 .zoombox .zscale{font-size:12px;color:var(--muted);white-space:nowrap}
-.zoombox.locked input{opacity:.4}
 .a4btns{display:flex;gap:4px;padding-left:8px;border-left:1px solid var(--rule)}
 .a4btns button{height:26px;padding:0 8px;border:1px solid #9fb0bf;border-radius:4px;background:#fff;font-size:12px;cursor:pointer;white-space:nowrap}
 .a4btns button:hover{background:var(--survey-soft)}
-.zoombox.locked .a4btns{display:none}
-.zoombox.compact .zscale{display:none}
-.zoombox.compact input{width:90px}
 
 .legend{position:absolute;z-index:6;left:calc(var(--mL) + 10px);bottom:calc(var(--mB) + 10px);min-width:200px;max-width:min(420px,60%);max-height:55%;overflow:auto;padding:8px 12px 10px;background:rgba(255,255,255,.96);border:1px solid #9aa6b0;border-radius:4px;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .legend header{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
@@ -99,6 +91,10 @@ button,input,select{font-family:inherit}
 .legend .lg-row.fixed{cursor:default}
 .legend .lg-row.fixed:hover{background:none}
 .legend .lg-grip{width:10px;color:#8a97a3;font-size:13px;line-height:1}
+.legend{--lgs:1}
+.legend .lg-rows{font-size:calc(13px * var(--lgs))}
+.legend header b{font-size:calc(14px * var(--lgs))}
+.legend .lg-label[contenteditable="true"]{background:#fffbe6;outline:1px solid #d9b84a;cursor:text;user-select:text;padding:0 2px}
 .legend .empty{color:var(--muted)}
 .legend .lg-opt{display:flex;gap:6px;align-items:center;margin-top:6px;padding-top:6px;border-top:1px solid var(--rule-soft);font-size:12px;color:var(--muted)}
 .legend .lg-opt label{display:flex;gap:6px;align-items:center;cursor:pointer}
@@ -136,13 +132,37 @@ body.anno-clean .anno-box{border-color:transparent}
 body.anno-clean .anno-box .ah{display:none}
 
 /* ---------- 右側圖層選單 ---------- */
-.drawer{position:fixed;right:0;top:160px;height:calc(100vh - 170px);width:var(--drawer-w);max-width:88vw;display:flex;z-index:1200;background:#fff;border:1px solid var(--rule);border-right:0;box-shadow:-6px 0 18px rgba(20,40,60,.14);transition:transform .25s ease}
+.drawer{position:fixed;right:0;top:160px;height:calc(100vh - 170px);width:var(--drawer-w);max-width:88vw;display:flex;flex-direction:column;z-index:1200;background:#fff;border:1px solid var(--rule);border-right:0;box-shadow:-6px 0 18px rgba(20,40,60,.14);transition:transform .25s ease}
 .drawer.collapsed{transform:translateX(100%)}
 .drawer-tab{position:absolute;left:-34px;top:10px;width:34px;padding:12px 0 10px;border:0;border-radius:6px 0 0 6px;background:var(--alert);color:#fff;font-size:15px;font-weight:700;line-height:1.3;text-align:center;cursor:pointer;box-shadow:-2px 2px 6px rgba(0,0,0,.18)}
 .drawer-tab span{display:block}
 .drawer-tab::after{content:"▸";display:block;margin-top:6px;font-size:11px}
 .drawer.collapsed .drawer-tab::after{content:"◂"}
-.drawer-body{flex:1;overflow:auto;overscroll-behavior:contain}
+.drawer-body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
+/* 選單頂端：底圖、比例尺、地圖框、確定範圍與輸出（不隨下方清單捲動，永遠可見） */
+.fontbox{border:1px solid var(--rule-soft);border-radius:4px;padding:6px 8px;background:#fafbfc}
+.fontbox summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--ink)}
+.fontrow{display:grid;grid-template-columns:7.5em minmax(0,1fr) 3.2em;align-items:center;gap:8px;padding:3px 0;font-size:13px}
+.fontrow label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fontrow input[type=range]{width:100%;accent-color:#1c2731}
+.fontrow output{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+.fontbox #fontReset{margin-top:6px}
+.anno-font{padding:2px 12px 8px 38px;border-bottom:1px solid var(--rule-soft);grid-template-columns:3em minmax(0,1fr) 3.2em}
+.anno-font[hidden]{display:none}
+.legend #legendTitle[contenteditable="true"],.legend .lg-label[contenteditable="true"]{background:#fffbe6;outline:1px solid #e0c060;cursor:text;user-select:text}
+.drawer-top{flex:none;display:grid;gap:8px;padding:10px 12px 12px;background:#f7f9fb;border-bottom:2px solid var(--rule);font-size:15px}
+.dt-row{display:flex;align-items:center;gap:8px}
+.dt-row > label{white-space:nowrap}
+.dt-row select{flex:1;min-width:0;height:32px;padding:0 6px;border:1px solid #9fb0bf;border-radius:4px;background:#fff;color:var(--ink);font:inherit;cursor:pointer}
+.drawer-top .zoombox input{flex:1;min-width:70px;width:auto;accent-color:var(--survey)}
+.drawer-top .zoombox .zval{font-weight:700;font-variant-numeric:tabular-nums}
+.drawer-top .zoombox.locked input{opacity:.4}
+.dt-scale{margin-top:-4px;font-size:12px;color:var(--muted)}
+.drawer-top .a4btns{font-size:13px;color:var(--muted)}
+.drawer-top .a4btns button{height:28px;padding:0 12px;border:1px solid #9fb0bf;border-radius:4px;background:#fff;color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
+.drawer-top .a4btns button:hover{background:var(--survey-soft)}
+.drawer.locked .a4btns{display:none}
+.dt-actions .abtn{flex:1}
 .sec{border-bottom:1px solid var(--rule)}
 .sec-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f2f5f8;border-bottom:1px solid var(--rule-soft)}
 .sec-head button{flex:1;display:flex;align-items:center;gap:6px;padding:0;border:0;background:none;color:var(--ink);font-size:16px;font-weight:700;text-align:left;cursor:pointer}
@@ -169,6 +189,11 @@ body.anno-clean .anno-box .ah{display:none}
 .anno-tools{display:grid;gap:8px;padding:10px 12px;border-bottom:1px solid var(--rule-soft);font-size:13px}
 .anno-tools .line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .anno-tools input[type=range]{flex:1;accent-color:#1c2731}
+.fontbox summary{cursor:pointer;font-weight:700;color:var(--ink);margin-bottom:4px}
+.fontbox .fontrow{display:grid;grid-template-columns:96px 1fr 44px;gap:6px;align-items:center;margin:2px 0}
+.fontbox .fontrow label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fontbox .fontrow output{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.fontbox .sbtn{margin-top:4px}
 .note{padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.6}
 .note b{color:var(--ink)}
 
@@ -211,36 +236,8 @@ body.anno-clean .anno-box .ah{display:none}
     <div id="map" aria-label="地圖"></div>
     <canvas id="frameCanvas" aria-hidden="true"></canvas>
 
-    <div class="basebox" id="basebox">
-      <label for="baseSelect">底圖：</label>
-      <select id="baseSelect" aria-label="切換底圖">
-        <option value="emap">通用電子地圖</option>
-        <option value="google">谷歌地圖</option>
-        <option value="photo">通用正射影像</option>
-        <option value="topo">經建版地形圖（1/25000）</option>
-        <option value="bao">台灣堡圖</option>
-        <option value="none">關閉底圖</option>
-      </select>
-    </div>
-
-    <div class="ctrlstack" id="ctrlStack">
-    <div class="zoombox" id="zoombox">
-      <label for="zoomSlider">比例尺 (Zoom)：<span class="zval" id="zoomVal">8</span></label>
-      <input type="range" id="zoomSlider" min="7" max="17" step="1" value="8">
-      <span class="zscale" id="zoomScale"></span>
-      <span class="a4btns" role="group" aria-label="把地圖框調成 A4 比例">
-        <button type="button" data-a4="land" title="把地圖框調成 A4 橫式的比例">A4 橫</button>
-        <button type="button" data-a4="port" title="把地圖框調成 A4 直式的比例">A4 直</button>
-      </span>
-    </div>
-    <div class="actbox" role="group" aria-label="確定範圍與輸出">
-      <button class="abtn confirm" type="button" id="btnConfirm" aria-pressed="false">確定範圍</button>
-      <button class="abtn go" type="button" id="btnExport" title="輸出 A4、300 dpi 黑白 PNG（不含底圖）">輸出圖檔</button>
-    </div>
-    </div>
-
     <section class="legend" id="legend" aria-label="圖例">
-      <header><b>圖例（灰階印刷）</b><small>拖曳排序｜右側調色</small><button type="button" id="legendMin" aria-expanded="true">收合</button></header>
+      <header><b id="legendTitle" title="雙擊可修改圖例標題">圖例</b><small>拖曳排序｜雙擊改字</small><button type="button" id="legendMin" aria-expanded="true">收合</button></header>
       <div class="empty" id="legendEmpty">尚未勾選圖層</div>
       <div class="lg-rows" id="legendRows"></div>
       <div class="lg-opt"><label><input type="checkbox" id="legendExport" checked>輸出圖檔時附上圖例</label>
@@ -256,6 +253,33 @@ body.anno-clean .anno-box .ah{display:none}
 
 <aside class="drawer" id="drawer" aria-label="圖層選單">
   <button class="drawer-tab" id="drawerTab" type="button" aria-expanded="true" aria-label="圖層選單"><span>圖</span><span>層</span><span>選</span><span>單</span></button>
+  <div class="drawer-top" id="drawerTop">
+    <div class="dt-row">
+      <label for="baseSelect">底圖</label>
+      <select id="baseSelect" aria-label="切換底圖">
+        <option value="emap">通用電子地圖</option>
+        <option value="google">谷歌地圖</option>
+        <option value="photo">通用正射影像</option>
+        <option value="topo">經建版地形圖（1/25000）</option>
+        <option value="bao">台灣堡圖</option>
+        <option value="none">關閉底圖</option>
+      </select>
+    </div>
+    <div class="dt-row zoombox" id="zoombox">
+      <label for="zoomSlider">比例尺 (Zoom)：<span class="zval" id="zoomVal">8</span></label>
+      <input type="range" id="zoomSlider" min="7" max="17" step="1" value="8">
+    </div>
+    <div class="dt-scale" id="zoomScale"></div>
+    <div class="dt-row a4btns" role="group" aria-label="把地圖框調成 A4 比例">
+      <span>地圖框</span>
+      <button type="button" data-a4="land" title="把地圖框調成 A4 橫式的比例">A4 橫</button>
+      <button type="button" data-a4="port" title="把地圖框調成 A4 直式的比例">A4 直</button>
+    </div>
+    <div class="dt-row dt-actions" role="group" aria-label="確定範圍與輸出">
+      <button class="abtn confirm" type="button" id="btnConfirm" aria-pressed="false">確定範圍</button>
+      <button class="abtn go" type="button" id="btnExport" title="輸出 A4、300 dpi 黑白 PNG（不含底圖）">輸出圖檔</button>
+    </div>
+  </div>
   <div class="drawer-body">
     <section class="sec" data-group="point">
       <div class="sec-head"><button type="button">1. 點圖層 (Point)</button><small>灰階</small></div>
@@ -278,7 +302,8 @@ body.anno-clean .anno-box .ah{display:none}
       <div class="sec-head"><button type="button">4. 註記 (Annotation)</button><small id="annoCount"></small></div>
       <div class="sec-body">
         <div class="anno-tools">
-          <div class="line"><span>字級</span><input type="range" id="annoScale" min="60" max="180" step="5" value="100"><output id="annoScaleVal">100%</output></div>
+          <details class="fontbox" open><summary>字級（個別調整）</summary><div id="fontRows"></div>
+            <button class="sbtn" type="button" id="fontReset">字級全部恢復 100%</button></details>
           <div class="line"><label><input type="checkbox" id="annoBgAll"> 文字加白底遮罩（套用全部，個別方塊可按右下角 ▣ 切換）</label></div>
           <div class="line"><select id="symPick" aria-label="要新增的點符號" style="flex:1;height:32px"></select>
             <button class="sbtn" type="button" id="symAdd">＋ 新增點符號</button></div>
@@ -315,9 +340,11 @@ const CONFIG = {
   // 可填單一 .pmtiles 網址，或分割圖磚的 index.json 網址；也可在網址後加 ?pmtiles=...（.pmtiles 或 index.json）
   // Cloudflare R2 上 .pmtiles 的公開網址（建議用自訂網域），例：'https://tiles.example.com/Taiwan_25K_Topo_EPSG4326.pmtiles'
   // 也可填分割圖磚的 index.json；留空則等待使用者載入本機檔
-  PMTILES_URL: 'https://pub-ec479c9d5fbb4f58b701bf435ebf116e.r2.dev/Taiwan_25K_Topo_EPSG4326_v3.pmtiles',
+  PMTILES_URL: '',
   MAP_MIN_ZOOM: 7,
   MAP_MAX_ZOOM: 17,                       // 16、17 級以 15 級圖磚放大顯示（向量不會模糊）
+  ZOOM_SNAP: 0,                           // 0 = 無段式縮放（可停在 14.37 這類小數層級）；1 = 只停在整數層級（舊版行為）
+  ZOOM_STEP: 0.25,                        // 鍵盤 +/－ 與雙擊每次縮放的層級；滾輪與雙指縮放為連續的
   START_VIEW: { lat: 23.72, lng: 120.95, zoom: 8 },
   RADAR: { lat: 24.4975, lng: 121.0707, halfSizeM: 6000 },    // 樂山（鹿場大山北峰附近），往東西南北各 6 公里（12×12 = 144 km²）
   GRID_STEP_M: 1000,
@@ -958,7 +985,8 @@ function collectFeats(layers, src) {
 /* ============================================================
  * 向量繪製主程式（螢幕與輸出共用）
  * o = { tiles:[{x,y,layers}], dz（資料層級）, originX, originY（資料層級的全域像素）, scale（畫布像素／資料像素）,
- *       sym（符號倍率）, enabled:Set, grays:{}, contourLabels:boolean, skipPoints:Set（已刪除的點）, order:[]（由下而上） }
+ *       sym（符號倍率）, enabled:Set, grays:{}, contourLabels:boolean, skipPoints:Set（已刪除的點）, order:[]（由下而上）,
+ *       fontScale:{ elev, contour }（字級倍率） }
  * ============================================================ */
 function renderVector(ctx, o) {
   const ts = 256 * o.scale;
@@ -988,6 +1016,7 @@ function pointKey(f, tile, p, dz) {
   const [la, ln] = MERC.unproject(tile.x * 256 + p[0] / f.ext * 256, tile.y * 256 + p[1] / f.ext * 256, dz);
   return f.ln + '@' + la.toFixed(5) + ',' + ln.toFixed(5);
 }
+function fontScaleOf(o, key) { return (o && o.fontScale && o.fontScale[key]) || 1; }
 function drawPoints(c, F, e) {
   const col = gs(e.g), s = 1.15 * e.k, skip = e.o.skipPoints;
   for (const f of F) {
@@ -1002,7 +1031,7 @@ function drawPoints(c, F, e) {
       c.restore();
       if (e.def.numLabel) {
         const v = numOrNull(pfirst(f.props, ELEV_FIELDS));
-        if (v !== null) haloText(c, String(Math.round(v * 10) / 10), x + 3.4 * s, y, 9 * e.k, col, 'left', 'middle');
+        if (v !== null) haloText(c, String(Math.round(v * 10) / 10), x + 3.4 * s, y, 9 * e.k * fontScaleOf(e.o, 'elev'), col, 'left', 'middle');
       }
     }
   }
@@ -1011,7 +1040,8 @@ function drawContourLabels(c, o, ts) {
   const id = ['ContourL_zv50', 'ContourL_zv100', 'ContourL_zv200', 'ContourL_zv250', 'ContourL_zv500', 'ContourL_zv1000', 'ContourL'].find(i => o.enabled.has(i));
   if (!id) return;
   const def = DEF[id], interval = id === 'ContourL' ? 100 : +id.split('zv')[1];
-  const col = gs(Math.min(60, o.grays[id] ?? def.gray)), size = 9 * o.sym, minLen = 150 * o.sym;
+  // 最短標註長度不隨字級放大：線段在圖磚邊界被切開，每段在畫面上最長約 360 px，放大門檻會讓大字級完全沒有標註
+  const fsc = fontScaleOf(o, 'contour'), col = gs(Math.min(60, o.grays[id] ?? def.gray)), size = 9 * o.sym * fsc, minLen = 150 * o.sym;
   for (const t of o.tiles) {
     if (!t.layers) continue;
     const F = collectFeats(t.layers, def.src); if (!F.length) continue;
@@ -1246,11 +1276,13 @@ function enabledVectorIds(enabled) { return [...enabled].filter(id => DEF[id] &&
 /* ============================================================
  * A4、300 dpi 輸出
  * ============================================================ */
-function exportLayout(size) {
+/** 輸出頁邊界（mm）：容納四周的 TM2 座標文字，字級放大時跟著加寬 */
+function exportMarginMM(coordScale) { return Math.max(CONFIG.EXPORT.marginMM, 2.7 * (coordScale || 1) * 2.4 + 4); }
+function exportLayout(size, coordScale) {
   const dpi = CONFIG.EXPORT.dpi, mm = v => v * dpi / 25.4;
   const land = size.x >= size.y;
   const PW = Math.round(mm(land ? 297 : 210)), PH = Math.round(mm(land ? 210 : 297));
-  const margin = mm(CONFIG.EXPORT.marginMM), foot = mm(CONFIG.EXPORT.footerMM);
+  const margin = mm(exportMarginMM(coordScale)), foot = mm(CONFIG.EXPORT.footerMM);
   const availW = PW - 2 * margin, availH = PH - 2 * margin - foot;
   const k = Math.min(availW / size.x, availH / size.y);
   const fw = size.x * k, fh = size.y * k, fx = (PW - fw) / 2, fy = margin + (availH - fh) / 2;
@@ -1287,26 +1319,32 @@ function drawAnnoItem(c, a, x, y, size, k) {
   } else { c.strokeText(a.text, 0, 0); c.fillText(a.text, 0, 0); }
   c.restore();
 }
-function drawExportLegend(c, defs, grays, L) {
+/**
+ * 輸出圖例：與網頁上的圖例相同（單欄、同順序、同文字、同字級），尺寸以螢幕像素 × k 換算。
+ * opt = { labels:{ id: 自訂文字 }, scale: 圖例字級倍率 }
+ */
+function drawExportLegend(c, defs, grays, L, opt = {}) {
   if (!defs.length) return;
-  const mm = L.mm, pad = mm(2), gw = mm(9), gh = mm(3.6), rowH = mm(4.8), font = mm(2.6), titleH = mm(5.2);
+  const u = L.k * (opt.scale || 1), labels = opt.labels || {};
+  const padX = 12 * u, padY = 8 * u, gw = 36 * u, gh = 16 * u, gap = 8 * u, rowH = 22 * u, font = 13 * u, titleFont = 14 * u, titleH = 24 * u;
+  const text = d => labels[d.id] || d.label;
   c.save();
+  const title = opt.title || '圖例';
+  c.font = `700 ${titleFont}px ${FONT_STACK}`;
+  const titleW = c.measureText(title).width;
   c.font = `500 ${font}px ${FONT_STACK}`;
-  const labelW = Math.max(...defs.map(d => c.measureText(d.label).width));
-  const cols = defs.length > 16 ? 3 : defs.length > 7 ? 2 : 1, rows = Math.ceil(defs.length / cols);
-  const colW = gw + mm(2) + labelW + mm(4);
-  const bw = pad * 2 + cols * colW - mm(4), bh = pad * 2 + titleH + rows * rowH;
-  const bx = L.fx + mm(2.5), by = L.fy + L.fh - mm(2.5) - bh;
+  const labelW = Math.max(...defs.map(d => c.measureText(text(d)).width));
+  const bw = padX * 2 + Math.max(titleW, gw + gap + labelW), bh = padY * 2 + titleH + defs.length * rowH;
+  const bx = L.fx + 10 * L.k, by = L.fy + L.fh - 10 * L.k - bh;
   c.fillStyle = '#fff'; c.fillRect(bx, by, bw, bh);
-  c.strokeStyle = '#000'; c.lineWidth = mm(0.2); c.strokeRect(bx, by, bw, bh);
-  c.fillStyle = '#000'; c.font = `700 ${mm(3)}px ${FONT_STACK}`; c.textBaseline = 'top'; c.textAlign = 'left';
-  c.fillText('圖例', bx + pad, by + pad);
-  c.font = `500 ${font}px ${FONT_STACK}`; c.textBaseline = 'middle';
+  c.strokeStyle = '#000'; c.lineWidth = Math.max(1, 0.8 * L.k); c.strokeRect(bx, by, bw, bh);
+  c.fillStyle = '#000'; c.font = `700 ${titleFont}px ${FONT_STACK}`; c.textBaseline = 'middle'; c.textAlign = 'left';
+  c.fillText(title, bx + padX, by + padY + titleH / 2);
+  c.font = `500 ${font}px ${FONT_STACK}`;
   defs.forEach((d, i) => {
-    const col = Math.floor(i / rows), row = i % rows;
-    const x = bx + pad + col * colW, y = by + pad + titleH + row * rowH;
+    const x = bx + padX, y = by + padY + titleH + i * rowH;
     drawLegendGlyph(c, d, grays[d.id] ?? d.gray, x, y + (rowH - gh) / 2, gw, gh, gh / 16);
-    c.fillStyle = '#000'; c.fillText(d.label, x + gw + mm(2), y + rowH / 2);
+    c.fillStyle = '#000'; c.fillText(text(d), x + gw + gap, y + rowH / 2);
   });
   c.restore();
 }
@@ -1314,7 +1352,7 @@ function drawExportLegend(c, defs, grays, L) {
  * o = { z, pbMin:{x,y}, size:{x,y}, store, header, enabled, grays, contourLabels, skipPoints, annos:[], legend, onProgress }
  */
 async function composeExport(o) {
-  const L = exportLayout(o.size), { mm, k, fx, fy, fw, fh } = L;
+  const L = exportLayout(o.size, fontScaleOf(o, 'coord')), { mm, k, fx, fy, fw, fh } = L;
   const cv = document.createElement('canvas'); cv.width = L.PW; cv.height = L.PH;
   const c = cv.getContext('2d');
   c.fillStyle = '#fff'; c.fillRect(0, 0, L.PW, L.PH);
@@ -1323,9 +1361,9 @@ async function composeExport(o) {
 
   c.save(); c.beginPath(); c.rect(fx, fy, fw, fh); c.clip();
   if (o.store && o.header && enabledVectorIds(o.enabled).length) {
-    const dz = Math.max(o.header.minZoom, Math.min(o.header.maxZoom, o.z)), f = Math.pow(2, o.z - dz);
+    const dz = Math.max(o.header.minZoom, Math.min(o.header.maxZoom, Math.round(o.z))), f = Math.pow(2, o.z - dz);
     const tiles = await loadTileSet(o.store, dz, o.pbMin.x / f, o.pbMin.y / f, (o.pbMin.x + o.size.x) / f, (o.pbMin.y + o.size.y) / f, o.onProgress);
-    renderVector(c, { tiles, dz, originX: o.pbMin.x / f - fx / (f * k), originY: o.pbMin.y / f - fy / (f * k), scale: f * k, sym: k, enabled: o.enabled, grays: o.grays, contourLabels: o.contourLabels, skipPoints: o.skipPoints, order: o.order });
+    renderVector(c, { tiles, dz, originX: o.pbMin.x / f - fx / (f * k), originY: o.pbMin.y / f - fy / (f * k), scale: f * k, sym: k, enabled: o.enabled, grays: o.grays, contourLabels: o.contourLabels, skipPoints: o.skipPoints, order: o.order, fontScale: o.fontScale });
   }
   const grid = computeGrid({ rect: { x: fx, y: fy, w: fw, h: fh }, toLL, fromLL, minPx: 9 * k, labelMinPx: mm(9) });
   if (o.enabled.has('Grid')) drawGridLines(c, grid, Math.max(1, 0.8 * k), gs(o.grays.Grid ?? DEF.Grid.gray));
@@ -1343,9 +1381,9 @@ async function composeExport(o) {
 
   if (o.legend) {
     const defs = legendDefs(o.enabled, o.order);
-    drawExportLegend(c, defs, o.grays, L);
+    drawExportLegend(c, defs, o.grays, L, { labels: o.legendLabels, title: o.legendTitle, scale: fontScaleOf(o, 'legend') });
   }
-  drawFrameAndTicks(c, grid, { tick: mm(CONFIG.TICK_MM), font: mm(2.7), gap: mm(0.8), lw: mm(0.18), frameLw: mm(0.3), color: '#000' });
+  drawFrameAndTicks(c, grid, { tick: mm(CONFIG.TICK_MM), font: mm(2.7) * fontScaleOf(o, 'coord'), gap: mm(0.8), lw: mm(0.18), frameLw: mm(0.3), color: '#000' });
 
   const [clat] = toLL(fx + fw / 2, fy + fh / 2);
   const scale = roundScale(printScaleDenominator(clat, o.z, k, L.dpi));
@@ -1373,9 +1411,12 @@ const state = {
   enabled: new Set(LAYER_DEFS.filter(d => d.defaultOn).map(d => d.id)),
   grays: Object.fromEntries(LAYER_DEFS.map(d => [d.id, d.gray])),
   order: DRAW_ORDER.slice(),            // 繪製順序（由下而上），可在圖例拖曳調整
+  fontScale: {},                        // 各類文字的字級倍率（見 FONT_CATS）
+  legendLabels: {},                     // 使用者修改過的圖例文字
+  legendTitle: '圖例',
   base: 'emap', contourLabels: true, legendExport: true, view: null,
   locked: false, inspect: false, userSized: false,
-  annoScale: 1, annos: new Map(), annoSeq: 0, annoDeleted: new Set(), annoClassOn: new Set(), annoLayers: [], annoBg: false,
+  annos: new Map(), annoSeq: 0, annoDeleted: new Set(), annoClassOn: new Set(), annoLayers: [], annoBg: false,
   pts: new Map(), ptDeleted: new Set(), ptDeletedInfo: new Map(),   // 建物、交通設施的點名稱方塊；已刪除的點
 };
 const PT_LAYERS = ['BuildP', 'TransP'];     // 有名稱方塊、可逐點刪除的點圖層
@@ -1388,25 +1429,28 @@ let ptWarned = false;
     if (p.grays) for (const id in p.grays) if (DEF[id]) state.grays[id] = +p.grays[id];
     if (p.base) state.base = p.base;
     state.order = mergeOrder(p.order);
+    if (p.fontScale && typeof p.fontScale === 'object') state.fontScale = p.fontScale;
+    if (p.legendLabels && typeof p.legendLabels === 'object') state.legendLabels = p.legendLabels;
+    if (typeof p.legendTitle === 'string' && p.legendTitle.trim()) state.legendTitle = p.legendTitle;
     if (typeof p.contourLabels === 'boolean') state.contourLabels = p.contourLabels;
     if (typeof p.legendExport === 'boolean') state.legendExport = p.legendExport;
     if (p.view && isFinite(p.view.lat)) state.view = p.view;
   } catch (e) { /* 忽略 */ }
 })();
 let prefTimer = 0;
-function savePrefs() {
-  clearTimeout(prefTimer);
-  prefTimer = setTimeout(() => {
-    try {
+function writePrefs() {
+  try {
       const c = map.getCenter();
-      localStorage.setItem(PREF_KEY, JSON.stringify({ enabled: [...state.enabled], grays: state.grays, base: state.base, order: state.order,
+      localStorage.setItem(PREF_KEY, JSON.stringify({ enabled: [...state.enabled], grays: state.grays, base: state.base, order: state.order, fontScale: state.fontScale, legendLabels: state.legendLabels, legendTitle: state.legendTitle,
         contourLabels: state.contourLabels, legendExport: state.legendExport, view: { lat: c.lat, lng: c.lng, zoom: map.getZoom() } }));
     } catch (e) { /* 忽略 */ }
-  }, 300);
 }
+function savePrefs() { clearTimeout(prefTimer); prefTimer = setTimeout(writePrefs, 300); }
+// 關閉或重新整理分頁時，立即寫入尚未存檔的設定（避免剛改的圖例文字、順序遺失）
+window.addEventListener('pagehide', () => { if (prefTimer) { clearTimeout(prefTimer); writePrefs(); } });
 
 /* ---------- 共用 UI ---------- */
-const wrap = $('#mapWrap'), mapEl = $('#map'), drawer = $('#drawer'), zoombox = $('#zoombox'), ctrlStack = $('#ctrlStack');
+const wrap = $('#mapWrap'), mapEl = $('#map'), drawer = $('#drawer'), zoombox = $('#zoombox');
 let toastTimer = 0;
 function toast(msg, ms = 3200) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), ms); }
 function setStatus(st, text) { $('#status').dataset.state = st; $('#statusText').textContent = text; $('#status').title = text; }
@@ -1418,15 +1462,39 @@ function busy(text) {
   b.textContent = text;
   busyTimer = setTimeout(() => b.classList.add('on'), 150);
 }
-const clampZ = (z, h) => Math.max(h.minZoom, Math.min(h.maxZoom, z));
+/** 地圖層級可為小數，但圖磚只有整數層級：取最接近的整數層級，再依差值縮放（向量圖層縮放不會模糊） */
+const clampZ = (z, h) => Math.max(h.minZoom, Math.min(h.maxZoom, Math.round(z)));
 
 /* ---------- 地圖 ---------- */
 const startView = state.view || CONFIG.START_VIEW;
 const map = L.map(mapEl, {
-  zoomControl: false, minZoom: CONFIG.MAP_MIN_ZOOM, maxZoom: CONFIG.MAP_MAX_ZOOM, zoomSnap: 1, zoomDelta: 1,
-  wheelPxPerZoomLevel: 90, maxBounds: L.latLngBounds([20.2, 116.6], [27.4, 123.8]), maxBoundsViscosity: 0.6,
-}).setView([startView.lat, startView.lng], Math.round(startView.zoom));
+  zoomControl: false, minZoom: CONFIG.MAP_MIN_ZOOM, maxZoom: CONFIG.MAP_MAX_ZOOM,
+  zoomSnap: CONFIG.ZOOM_SNAP, zoomDelta: CONFIG.ZOOM_SNAP ? 1 : CONFIG.ZOOM_STEP,
+  wheelPxPerZoomLevel: CONFIG.ZOOM_SNAP ? 90 : 120, wheelDebounceTime: CONFIG.ZOOM_SNAP ? 40 : 20,
+  touchZoom: true, bounceAtZoomLimits: false, maxBounds: L.latLngBounds([20.2, 116.6], [27.4, 123.8]), maxBoundsViscosity: 0.6,
+}).setView([startView.lat, startView.lng], CONFIG.ZOOM_SNAP ? Math.round(startView.zoom) : startView.zoom);
 map.attributionControl.setPrefix(false);
+// Safari（Mac 觸控板）的雙指縮放送出 gesture 事件而非滾輪，預設會放大整個網頁；改為縮放地圖。
+// 觸控螢幕裝置（iPad 等）由 Leaflet 的 touchZoom 處理，這裡略過以免重複縮放。
+(function enableSafariTrackpadPinch() {
+  if (!('GestureEvent' in window) || navigator.maxTouchPoints > 0) return;
+  const el = map.getContainer();
+  let z0 = null, pt = null;
+  el.addEventListener('gesturestart', e => {
+    e.preventDefault();
+    if (state.locked) return;
+    z0 = map.getZoom();
+    const r = el.getBoundingClientRect();
+    pt = Number.isFinite(e.clientX) ? L.point(e.clientX - r.left, e.clientY - r.top) : map.getSize().divideBy(2);
+  }, { passive: false });
+  el.addEventListener('gesturechange', e => {
+    e.preventDefault();
+    if (z0 === null) return;
+    const z = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), z0 + Math.log2(e.scale)));
+    map.setZoomAround(pt, z, { animate: false });
+  }, { passive: false });
+  el.addEventListener('gestureend', e => { e.preventDefault(); if (z0 !== null) { z0 = null; map.fire('moveend'); } }, { passive: false });
+})();
 for (const [name, z] of [['vectorPane', 350], ['gridPane', 380], ['annoPane', 620], ['maskPane', 650]]) {
   const p = map.createPane(name); p.style.zIndex = z;
   if (name !== 'annoPane') p.style.pointerEvents = 'none';
@@ -1458,17 +1526,23 @@ const VectorLayer = L.Layer.extend({
   onAdd(m) {
     this._c = L.DomUtil.create('canvas', 'vec-canvas leaflet-zoom-animated', m.getPane('vectorPane'));
     this._token = 0; this._drawn = null;
-    m.on('moveend', this.redraw, this);
-    m.on('zoomstart', () => { this._animated = false; });
+    // 連續縮放（雙指、滑桿）時每一步都會觸發 moveend；畫面先以 transform 即時跟上，停下 80 ms 後才重新繪製
+    m.on('moveend', () => { clearTimeout(this._redrawTimer); this._redrawTimer = setTimeout(() => this.redraw(), 80); });
     m.on('zoomanim', this._onAnim, this);
-    m.on('zoomend', () => { if (!this._animated) this._c.style.visibility = 'hidden'; });
+    m.on('zoom', this._onLiveZoom, this);       // 雙指縮放、滑桿拖曳時沒有 zoomanim，改在每次 zoom 事件跟著縮放
     this.redraw();
   },
   _onAnim(e) {
     if (!this._drawn) return;
-    this._animated = true;
     const scale = this._map.getZoomScale(e.zoom, this._drawn.zoom);
     const off = this._map._latLngToNewLayerPoint(this._drawn.nw, e.zoom, e.center);
+    L.DomUtil.setTransform(this._c, off, scale);
+  },
+  _onLiveZoom() {
+    if (!this._drawn) return;
+    const m = this._map, z = m.getZoom();
+    const scale = m.getZoomScale(z, this._drawn.zoom);
+    const off = m._latLngToNewLayerPoint(this._drawn.nw, z, m.getCenter());
     L.DomUtil.setTransform(this._c, off, scale);
   },
   _clear() { const c = this._c; c.width = c.height = 0; this._drawn = null; busy(''); },
@@ -1490,7 +1564,7 @@ const VectorLayer = L.Layer.extend({
     off.width = Math.round(size.x * dpr); off.height = Math.round(size.y * dpr);
     try {
       renderVector(off.getContext('2d'), { tiles, dz, originX: pb.min.x / f, originY: pb.min.y / f, scale: f * dpr, sym: dpr,
-        enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels, skipPoints: state.ptDeleted, order: state.order });
+        enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels, skipPoints: state.ptDeleted, order: state.order, fontScale: state.fontScale });
     } catch (err) { console.error(err); toast('繪製圖層時發生錯誤：' + err.message); }
     if (token !== this._token) return;
     const c = this._c;
@@ -1531,7 +1605,7 @@ function drawOverlays() {
   const wr = wrap.getBoundingClientRect(), mr = mapEl.getBoundingClientRect();
   const fc = fitCanvas(frameCanvas, wr.width, wr.height, dpr);
   fc.translate(mr.left - wr.left, mr.top - wr.top);
-  drawFrameAndTicks(fc, grid, { tick: 96 / 25.4 * CONFIG.TICK_MM, font: 12, gap: 3, lw: 1, frameLw: 1.2, color: '#1c2731' });
+  drawFrameAndTicks(fc, grid, { tick: 96 / 25.4 * CONFIG.TICK_MM, font: 12 * fs('coord'), gap: 3, lw: 1, frameLw: 1.2, color: '#1c2731' });
   gridCanvas.style.visibility = '';
 }
 let ovRaf = 0;
@@ -1547,23 +1621,23 @@ L.marker([CONFIG.RADAR.lat, CONFIG.RADAR.lng], { pane: 'maskPane', interactive: 
 
 /* ---------- 比例尺滑桿（與滑鼠滾輪同步） ---------- */
 const slider = $('#zoomSlider');
-slider.min = CONFIG.MAP_MIN_ZOOM; slider.max = CONFIG.MAP_MAX_ZOOM;
-slider.addEventListener('input', () => { if (!state.locked) map.setZoom(+slider.value); });
+slider.min = CONFIG.MAP_MIN_ZOOM; slider.max = CONFIG.MAP_MAX_ZOOM; slider.step = CONFIG.ZOOM_SNAP || 0.01;
+slider.addEventListener('input', () => { if (!state.locked) map.setZoom(+slider.value, { animate: false }); });
+map.on('zoom', () => { if (!state.locked) { slider.value = map.getZoom(); $('#zoomVal').textContent = fmtZoom(map.getZoom()); } });
+function fmtZoom(z) { return Number.isInteger(z) ? String(z) : z.toFixed(2); }
 function updateZoomUI() {
   const z = map.getZoom(), lat = map.getCenter().lat;
-  slider.value = z; $('#zoomVal').textContent = z;
+  slider.value = z; $('#zoomVal').textContent = fmtZoom(z);
   const screen = roundScale(MERC.metersPerPixel(lat, z) * 96 / 0.0254);
   let txt = `螢幕約 1:${screen.toLocaleString('en-US')}`;
   if (state.locked) {
-    const L0 = exportLayout(map.getSize());
+    const L0 = exportLayout(map.getSize(), fs('coord'));
     txt += `｜輸出約 1:${roundScale(printScaleDenominator(lat, z, L0.k, L0.dpi)).toLocaleString('en-US')}`;
   }
   if (lastGridStep !== CONFIG.GRID_STEP_M) txt += `｜格網 ${lastGridStep / 1000} 公里`;
   $('#zoomScale').textContent = txt;
-  relayoutZoombox();
 }
 map.on('zoomend moveend', () => { updateZoomUI(); savePrefs(); });
-function relayoutZoombox() { if (typeof layout === 'function') requestAnimationFrame(() => { const r = wrap.getBoundingClientRect(), mr = mapEl.getBoundingClientRect(); const dl = drawer.classList.contains('collapsed') ? window.innerWidth - 34 : drawer.getBoundingClientRect().left - 34; ctrlStack.style.left = Math.max(mr.left - r.left + 10, Math.min(mr.right, dl) - 10 - r.left - ctrlStack.offsetWidth) + 'px'; }); }
 
 /* ---------- 圖層選單 ---------- */
 const rowRefs = {};
@@ -1621,6 +1695,8 @@ $('#drawerTab').addEventListener('click', () => setDrawer(drawer.classList.conta
 /* ---------- 螢幕圖例 ---------- */
 function buildLegend() {
   const rows = $('#legendRows'); rows.innerHTML = '';
+  $('#legend').style.setProperty('--lgs', fs('legend'));
+  if (!$('#legendTitle').isContentEditable) $('#legendTitle').textContent = state.legendTitle;
   const defs = legendDefs(state.enabled, state.order);
   $('#legendEmpty').hidden = defs.length > 0;
   for (const d of defs) {
@@ -1629,7 +1705,10 @@ function buildLegend() {
     const grip = document.createElement('span'); grip.className = 'lg-grip'; grip.textContent = fixed ? '' : '⠿'; grip.setAttribute('aria-hidden', 'true');
     const cv = document.createElement('canvas'); cv.width = 72; cv.height = 32; cv.style.width = '36px'; cv.style.height = '16px';
     glyphInto(cv, d);
-    const sp = document.createElement('span'); sp.textContent = d.label;
+    const sp = document.createElement('span'); sp.className = 'lg-label'; sp.textContent = state.legendLabels[d.id] || d.label;
+    sp.title = '雙擊可修改圖例文字';
+    sp.addEventListener('dblclick', ev => { ev.stopPropagation(); editLegendLabel(sp, d); });
+    const ls = fs('legend'); cv.style.width = (36 * ls) + 'px'; cv.style.height = (16 * ls) + 'px';
     r.append(grip, cv, sp);
     if (fixed) { r.classList.add('fixed'); r.title = '方格網固定畫在最上層'; }
     else {
@@ -1637,6 +1716,7 @@ function buildLegend() {
       r.setAttribute('aria-label', `${d.label}，按上下鍵調整圖層順序`);
       r.addEventListener('pointerdown', ev => startLegendDrag(ev, r));
       r.addEventListener('keydown', ev => {
+        if (ev.target.isContentEditable) return;
         if (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') return;
         ev.preventDefault();
         const ids = legendRowIds(), i = ids.indexOf(d.id), j = i + (ev.key === 'ArrowUp' ? -1 : 1);
@@ -1650,6 +1730,43 @@ function buildLegend() {
   }
   $('#legendReset').hidden = DRAW_ORDER.every((id, i) => state.order[i] === id);
 }
+/** 雙擊圖例文字即可修改；清空或改回原文字即恢復預設 */
+function editLegendLabel(sp, d) {
+  if (sp.isContentEditable) return;
+  const before = sp.textContent;
+  sp.contentEditable = 'true'; sp.focus();
+  const sel = window.getSelection(), rg = document.createRange(); rg.selectNodeContents(sp); sel.removeAllRanges(); sel.addRange(rg);
+  const done = save => {
+    sp.removeEventListener('keydown', onKey); sp.removeEventListener('blur', onBlur);
+    sp.contentEditable = 'false';
+    const v = sp.textContent.replace(/\s+/g, ' ').trim();
+    if (save && v && v !== d.label) state.legendLabels[d.id] = v;
+    else if (save) delete state.legendLabels[d.id];
+    else sp.textContent = before;
+    buildLegend(); savePrefs();
+  };
+  const onKey = e => { if (e.key === 'Enter') { e.preventDefault(); done(true); } else if (e.key === 'Escape') { e.preventDefault(); done(false); } };
+  const onBlur = () => done(true);
+  sp.addEventListener('keydown', onKey); sp.addEventListener('blur', onBlur);
+}
+function editLegendTitle() {
+  const el = $('#legendTitle');
+  if (el.isContentEditable) return;
+  const before = el.textContent;
+  el.contentEditable = 'true'; el.focus();
+  const sel = window.getSelection(), rg = document.createRange(); rg.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(rg);
+  const done = save => {
+    el.removeEventListener('keydown', onKey); el.removeEventListener('blur', onBlur);
+    el.contentEditable = 'false';
+    const v = el.textContent.replace(/\s+/g, ' ').trim();
+    if (save) state.legendTitle = v || '圖例'; else el.textContent = before;
+    buildLegend(); savePrefs();
+  };
+  const onKey = e => { if (e.key === 'Enter') { e.preventDefault(); done(true); } else if (e.key === 'Escape') { e.preventDefault(); done(false); } };
+  const onBlur = () => done(true);
+  el.addEventListener('keydown', onKey); el.addEventListener('blur', onBlur);
+}
+$('#legendTitle').addEventListener('dblclick', editLegendTitle);
 function legendRowIds() { return [...document.querySelectorAll('#legendRows .lg-row[data-id]')].map(r => r.dataset.id); }
 /** 依圖例由上而下的新順序，重排已勾選圖層在完整順序中所佔的位置（未勾選的圖層位置不變） */
 function applyLegendOrder(idsTopFirst) {
@@ -1660,7 +1777,8 @@ function applyLegendOrder(idsTopFirst) {
 }
 function startLegendDrag(ev, row) {
   if (ev.button !== undefined && ev.button !== 0) return;
-  ev.preventDefault();
+  if (ev.target.isContentEditable) return;                 // 正在修改圖例文字
+  if (!ev.target.closest('.lg-label')) ev.preventDefault();  // 文字上不擋預設行為，雙擊才能觸發編輯
   const list = $('#legendRows'), y0 = ev.clientY, pid = ev.pointerId; let moved = false;
   // 拖曳時會移動 DOM 節點，瀏覽器會因此取消 pointer capture，所以改在 window 上監聽
   const onMove = e => {
@@ -1773,7 +1891,7 @@ const interactions = () => [map.dragging, map.scrollWheelZoom, map.doubleClickZo
 function lockRange() {
   state.locked = true;
   interactions().forEach(h => h.disable());
-  slider.disabled = true; zoombox.classList.add('locked'); wrap.classList.add('locked');
+  slider.disabled = true; zoombox.classList.add('locked'); wrap.classList.add('locked'); drawer.classList.add('locked');
   btnConfirm.textContent = '解除範圍'; btnConfirm.setAttribute('aria-pressed', 'true');
   const sec = $('#annoSec'); sec.hidden = false; sec.classList.remove('closed');
   setDrawer(true);
@@ -1786,7 +1904,7 @@ function lockRange() {
 function unlockRange() {
   state.locked = false;
   interactions().forEach(h => h.enable());
-  slider.disabled = false; zoombox.classList.remove('locked'); wrap.classList.remove('locked');
+  slider.disabled = false; zoombox.classList.remove('locked'); wrap.classList.remove('locked'); drawer.classList.remove('locked');
   btnConfirm.textContent = '確定範圍'; btnConfirm.setAttribute('aria-pressed', 'false');
   updateZoomUI();
   restyleAll();
@@ -1847,7 +1965,20 @@ function renderAnnoRows() {
       if (chk.checked) { state.annoClassOn.add(g.key); await load(); }
       else { state.annoClassOn.delete(g.key); removeAnnoGroup(g.key); small.textContent = count ? `${count} 筆` : ''; }
     });
+    // 勾選後在該類別下方顯示專屬的字級滑桿
+    const fkey = 'anno_' + g.key, fid = 'fs_' + cid, fv = Math.round(fs(fkey) * 100);
+    const frow = document.createElement('div'); frow.className = 'fontrow anno-font'; frow.hidden = !chk.checked;
+    frow.innerHTML = `<label for="${fid}">字級</label><input type="range" id="${fid}" min="50" max="250" step="5" value="${fv}"><output>${fv}%</output>`;
+    frow.querySelector('input').setAttribute('aria-label', g.title + '的字級');
+    frow.querySelector('input').addEventListener('input', e => {
+      const val = +e.target.value;
+      if (val === 100) delete state.fontScale[fkey]; else state.fontScale[fkey] = val / 100;
+      frow.querySelector('output').textContent = val + '%';
+      restyleAll(); savePrefs();
+    });
+    chk.addEventListener('change', () => { frow.hidden = !chk.checked; });
     annoRows.appendChild(row);
+    annoRows.appendChild(frow);
     if (chk.checked) load();
   }
 }
@@ -1924,7 +2055,7 @@ function updateAnnoCount() { $('#annoCount').textContent = state.annos.size ? `$
 function normAngle(d) { d = ((d % 360) + 540) % 360 - 180; return Math.round(d); }
 const PT_LABEL_OFFSET = 7;     // 點名稱方塊與點的水平距離（螢幕像素）
 function styleAnno(a) {
-  const sc = state.annoScale;
+  const sc = fs(fontCat(a));
   a.box.classList.toggle('bg', !!a.bg);
   a.box.classList.toggle('restricted', a.kind === 'pt' && !state.locked);
   if (a.kind === 'sym') {
@@ -2067,12 +2198,60 @@ function dragHandle(el, begin, onClick) {
   });
 }
 map.on('click', e => { setActive(null); if (state.inspect) inspectAt(e.latlng); });
-$('#annoScale').addEventListener('input', e => { state.annoScale = +e.target.value / 100; $('#annoScaleVal').textContent = e.target.value + '%'; restyleAll(); });
+/* ---------- 各類文字的字級 ---------- */
+const FONT_CATS = [
+  { key: 'coord', label: 'TM2 座標', apply: () => { applyCoordMargins(); updateZoomUI(); } },
+  { key: 'elev', label: '獨立標高點高程', apply: () => requestVectorRedraw() },
+  { key: 'contour', label: '計曲線高程', apply: () => requestVectorRedraw() },
+  { key: 'legend', label: '圖例', apply: () => buildLegend() },
+  { key: 'pt_BuildP', label: '建物名稱' },
+  { key: 'pt_TransP', label: '交通設施名稱' },
+  { key: 'custom', label: '新增文字' },
+  { key: 'sym', label: '新增點符號' },
+];
+function fs(key) { return state.fontScale[key] || 1; }
+/** 地圖外框邊界依 TM2 座標字級加寬；地圖本身大小不變（確定範圍後也不會改到範圍） */
+function applyCoordMargins() {
+  const f = fs('coord'), side = Math.max(48, Math.ceil(12 * f * 2.6 + 12)), tb = Math.max(30, Math.ceil(12 * f * 1.25 + 14));
+  const mr = mapEl.getBoundingClientRect(), root = document.documentElement.style;
+  root.setProperty('--mL', side + 'px'); root.setProperty('--mR', side + 'px'); root.setProperty('--mT', tb + 'px'); root.setProperty('--mB', tb + 'px');
+  if (state.locked || state.userSized) { wrap.style.width = Math.round(mr.width + 2 * side) + 'px'; wrap.style.height = Math.round(mr.height + 2 * tb) + 'px'; }
+  layout();
+}
+function fontCat(a) {
+  if (a.kind === 'pt') return 'pt_' + a.layer;
+  if (a.kind === 'sym') return 'sym';
+  if (a.key === 'custom') return 'custom';
+  if (a.key) return 'anno_' + a.key;          // 各類註記：anno_c3、anno_c10、anno_n:圖層名稱
+  return 'anno_other';
+}
+function buildFontRows() {
+  const box = $('#fontRows'); box.innerHTML = '';
+  for (const cat of FONT_CATS) {
+    const row = document.createElement('div'); row.className = 'line fontrow';
+    const id = 'fs_' + cat.key, v = Math.round(fs(cat.key) * 100);
+    row.innerHTML = `<label for="${id}"></label><input type="range" id="${id}" min="50" max="250" step="5" value="${v}"><output>${v}%</output>`;
+    row.querySelector('label').textContent = cat.label;
+    row.querySelector('input').addEventListener('input', e => {
+      const val = +e.target.value;
+      if (val === 100) delete state.fontScale[cat.key]; else state.fontScale[cat.key] = val / 100;
+      row.querySelector('output').textContent = val + '%';
+      (cat.apply || restyleAll)();
+      savePrefs();
+    });
+    box.appendChild(row);
+  }
+}
+$('#fontReset').addEventListener('click', () => {
+  state.fontScale = {}; buildFontRows();
+  annoRows.querySelectorAll('.anno-font').forEach(fr => { fr.querySelector('input').value = 100; fr.querySelector('output').textContent = '100%'; });
+  applyCoordMargins(); updateZoomUI(); requestVectorRedraw(); buildLegend(); restyleAll(); savePrefs();
+});
 $('#annoBgAll').addEventListener('change', e => { state.annoBg = e.target.checked; for (const a of allItems()) { if (a.kind !== 'sym') a.bg = state.annoBg; } restyleAll(); });
 for (const [k, v] of Object.entries(SYMBOL_LABELS)) { const o = document.createElement('option'); o.value = k; o.textContent = v; $('#symPick').appendChild(o); }
 $('#symAdd').addEventListener('click', () => {
   const c = map.getCenter();
-  const a = createAnno({ kind: 'sym', sym: $('#symPick').value, text: '', lat: c.lat, lng: c.lng, fontPx: 12 });
+  const a = createAnno({ kind: 'sym', key: 'sym', sym: $('#symPick').value, text: '', lat: c.lat, lng: c.lng, fontPx: 12 });
   updateAnnoCount(); setActive(a); toast('已在地圖中央加入「' + SYMBOL_LABELS[a.sym] + '」，拖曳左下角 ✥ 移到想要的位置');
 });
 $('#annoChrome').addEventListener('change', e => document.body.classList.toggle('anno-clean', !e.target.checked));
@@ -2147,9 +2326,10 @@ $('#btnExport').addEventListener('click', async () => {
     const res = await composeExport({
       z: map.getZoom(), pbMin: map.getPixelBounds().min, size: map.getSize(), store: state.store, header: state.archive && state.archive.header,
       enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels, legend: state.legendExport, order: state.order,
+      fontScale: state.fontScale, legendLabels: state.legendLabels, legendTitle: state.legendTitle,
       skipPoints: state.ptDeleted,
-      annos: allItems().filter(a => a.kind !== 'pt' || state.enabled.has(a.layer)).map(a => ({ kind: a.kind, sym: a.sym, scale: state.annoScale, lat: a.lat, lng: a.lng, text: a.text, rot: a.rot,
-        fontPx: a.fontPx * state.annoScale, family: a.family, vertical: a.vertical, bg: a.bg, align: a.kind === 'pt' && a.text ? 'left' : 'center', offsetPx: PT_LABEL_OFFSET + 5 })),
+      annos: allItems().filter(a => a.kind !== 'pt' || state.enabled.has(a.layer)).map(a => ({ kind: a.kind, sym: a.sym, scale: fs(fontCat(a)), lat: a.lat, lng: a.lng, text: a.text, rot: a.rot,
+        fontPx: a.fontPx * fs(fontCat(a)), family: a.family, vertical: a.vertical, bg: a.bg, align: a.kind === 'pt' && a.text ? 'left' : 'center', offsetPx: PT_LABEL_OFFSET + 5 })),
       onProgress: (d, n) => { prog.value = Math.round(d / n * 90); msg.textContent = `正在讀取圖磚 ${d} / ${n}…`; },
     });
     msg.textContent = '正在壓縮 PNG…'; prog.value = 95;
@@ -2168,17 +2348,20 @@ $('#btnExport').addEventListener('click', async () => {
 });
 
 /* ---------- 版面與縮放把手 ---------- */
+/** 地圖可用的最右邊界：選單打開時到選單左緣，收合時只留分頁標籤的寬度 */
+function mapRightLimit() {
+  return drawer.classList.contains('collapsed') ? window.innerWidth - 42 : window.innerWidth - drawer.offsetWidth - 42;
+}
 function layout() {
   const r0 = wrap.getBoundingClientRect();
-  if (!state.userSized) { wrap.style.width = ''; wrap.style.height = Math.max(360, window.innerHeight - r0.top - 6) + 'px'; }
-  const r = wrap.getBoundingClientRect(), mr = mapEl.getBoundingClientRect();
+  if (!state.locked) {                    // 確定範圍後不改變地圖大小，否則會改到已確定的範圍
+    const maxW = Math.max(420, mapRightLimit() - r0.left);
+    if (!state.userSized) { wrap.style.width = maxW + 'px'; wrap.style.height = Math.max(360, window.innerHeight - r0.top - 6) + 'px'; }
+    else if (r0.width > maxW) wrap.style.width = maxW + 'px';
+  }
+  const r = wrap.getBoundingClientRect();
   const top = Math.max(8, r.top);
   drawer.style.top = top + 'px'; drawer.style.height = Math.max(240, window.innerHeight - top - 8) + 'px';
-  const dl = drawer.classList.contains('collapsed') ? window.innerWidth - 34 : drawer.getBoundingClientRect().left - 34;
-  zoombox.classList.toggle('compact', Math.min(mr.right, dl) - mr.left < 640);
-  const rightEdge = Math.min(mr.right, dl) - 10;
-  ctrlStack.style.right = 'auto';
-  ctrlStack.style.left = Math.max(mr.left - r.left + 10, rightEdge - r.left - ctrlStack.offsetWidth) + 'px';
   map.invalidateSize({ pan: false });
   scheduleOverlays();
 }
@@ -2190,7 +2373,7 @@ document.querySelectorAll('.rh').forEach(hd => {
     const r = wrap.getBoundingClientRect(), sx = ev.clientX, sy = ev.clientY;
     const mv = e => {
       state.userSized = true;
-      if (mode.includes('e')) wrap.style.width = Math.max(420, Math.min(document.documentElement.clientWidth - r.left, r.width + e.clientX - sx)) + 'px';
+      if (mode.includes('e')) wrap.style.width = Math.max(420, Math.min(mapRightLimit() - r.left, r.width + e.clientX - sx)) + 'px';
       if (mode.includes('s')) wrap.style.height = Math.max(300, r.height + e.clientY - sy) + 'px';
       layout();
     };
@@ -2202,11 +2385,12 @@ document.querySelectorAll('.rh').forEach(hd => {
 document.querySelectorAll('[data-a4]').forEach(btn => btn.addEventListener('click', () => {
   if (state.locked) return;
   const land = btn.dataset.a4 === 'land';
-  const ratio = land ? (210 - 2 * CONFIG.EXPORT.marginMM - CONFIG.EXPORT.footerMM) / (297 - 2 * CONFIG.EXPORT.marginMM)
-                     : (297 - 2 * CONFIG.EXPORT.marginMM - CONFIG.EXPORT.footerMM) / (210 - 2 * CONFIG.EXPORT.marginMM);
+  const em = exportMarginMM(fs('coord'));
+  const ratio = land ? (210 - 2 * em - CONFIG.EXPORT.footerMM) / (297 - 2 * em)
+                     : (297 - 2 * em - CONFIG.EXPORT.footerMM) / (210 - 2 * em);
   const r = wrap.getBoundingClientRect(), mr = mapEl.getBoundingClientRect();
   const padX = r.width - mr.width, padY = r.height - mr.height;
-  const maxW = document.documentElement.clientWidth - r.left - (drawer.classList.contains('collapsed') ? 40 : 0);
+  const maxW = mapRightLimit() - r.left;
   const maxH = Math.max(300, window.innerHeight - r.top - 6);
   let w = maxW - padX, h = w * ratio;
   if (h + padY > maxH) { h = maxH - padY; w = h / ratio; }
@@ -2219,8 +2403,10 @@ window.addEventListener('resize', () => { if (!state.locked) layout(); else sche
 
 /* ---------- 啟動 ---------- */
 buildRows();
+buildFontRows();
 buildLegend();
 layout();
+if (fs('coord') !== 1) applyCoordMargins();
 updateZoomUI();
 if (window.innerWidth < 900) setDrawer(false);
 })();
