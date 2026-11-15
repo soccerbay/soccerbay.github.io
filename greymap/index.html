@@ -105,8 +105,6 @@ button,input,select{font-family:inherit}
 .busy.on{display:block}
 
 /* 遮罩標示 */
-.mask-label{pointer-events:none}
-.mask-label div{transform:translate(-50%,-50%);width:max-content;padding:6px 10px;background:#fff;border:1px solid #7b8792;color:#3d4851;font-size:13px;text-align:center;line-height:1.5}
 
 /* ---------- 註記文字方塊 ---------- */
 .anno-icon{background:none;border:0}
@@ -168,6 +166,7 @@ body.anno-clean .anno-box .ah{display:none}
 .drawer-top .a4btns button:hover{background:var(--survey-soft)}
 .drawer.locked .a4btns{display:none}
 .dt-actions .abtn{flex:1}
+.dt-tools .sbtn{flex:1;height:30px;font-size:14px}
 .sec{border-bottom:1px solid var(--rule)}
 .sec-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f2f5f8;border-bottom:1px solid var(--rule-soft)}
 .sec-head button{flex:1;display:flex;align-items:center;gap:6px;padding:0;border:0;background:none;color:var(--ink);font-size:16px;font-weight:700;text-align:left;cursor:pointer}
@@ -183,6 +182,17 @@ body.anno-clean .anno-box .ah{display:none}
 .row canvas{width:36px;height:16px;display:block}
 .row label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
 .row input[type=range]{width:84px;accent-color:#1c2731}
+.mask-label{pointer-events:none}
+.mask-label div{transform:translate(-50%,-50%);width:max-content;padding:6px 10px;background:#fff;border:1px solid #7b8792;color:#3d4851;font-size:13px;text-align:center;line-height:1.5}
+.subrow{display:flex;align-items:center;gap:5px;padding:4px 10px 7px 40px;white-space:nowrap;border-bottom:1px solid var(--rule-soft);font-size:13px;color:var(--muted)}
+.subrow[hidden]{display:none}
+.subrow > span{flex:none}
+.subrow input{flex:none;width:58px;height:26px;padding:0 4px;border:1px solid #9fb0bf;border-radius:4px;font:inherit;font-size:13px;color:var(--ink)}
+.subrow button{flex:none;margin-left:auto;height:26px;padding:0 8px;border:1px solid #9fb0bf;border-radius:4px;background:#fff;color:var(--ink);font:inherit;font-size:12px;cursor:pointer}
+.subrow.on{color:var(--ink);background:#fffbe6}
+.subrow input[aria-invalid="true"]{border-color:#b3261e;background:#fdecea}
+.crnote{padding:0 10px 7px 40px;font-size:12px;line-height:1.5;color:#8a4b00;background:#fffbe6;border-bottom:1px solid var(--rule-soft)}
+.crnote[hidden]{display:none}
 .row output{font-size:11px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
 .row.anno{grid-template-columns:18px minmax(0,1fr) auto}
 .row.anno small{color:var(--muted);font-size:11px;text-align:right;max-width:120px;line-height:1.3}
@@ -314,6 +324,10 @@ body.anno-clean .anno-box .ah{display:none}
       <button type="button" data-a4="land" title="把地圖版面調成 A4 橫式的比例">A4 橫</button>
       <button type="button" data-a4="port" title="把地圖版面調成 A4 直式的比例">A4 直</button>
     </div>
+    <div class="dt-row dt-tools" role="group" aria-label="查詢屬性與灰階">
+      <button class="sbtn" type="button" id="btnInspect" aria-pressed="false" title="點地圖上的圖徵，顯示屬性欄位與代碼">查詢屬性</button>
+      <button class="sbtn" type="button" id="btnResetGray" title="把所有圖層的灰階恢復為預設值">灰階恢復預設</button>
+    </div>
     <div class="dt-row dt-actions" role="group" aria-label="確定範圍與輸出">
       <button class="abtn confirm" type="button" id="btnConfirm" aria-pressed="false">確定範圍</button>
       <button class="abtn go" type="button" id="btnExport" title="輸出 A4、300 dpi 黑白 PNG（不含底圖）">輸出圖檔</button>
@@ -356,10 +370,6 @@ body.anno-clean .anno-box .ah{display:none}
         <p class="note">方塊<b>左上角</b>拖曳可旋轉（按住 Shift 以 15° 為單位，點一下可輸入角度）、<b>右上角</b>刪除、<b>左下角</b>拖曳移動、<b>右下角</b>切換白底遮罩；<b>雙擊文字</b>可修改內容。建物、交通設施的名稱在確定範圍後也可以這樣調整，按 × 會連同點符號一起刪除。</p>
       </div>
     </section>
-    <div class="sec-foot">
-      <button class="sbtn" type="button" id="btnInspect" aria-pressed="false" title="點地圖上的圖徵，顯示屬性欄位與代碼">查詢屬性</button>
-      <button class="sbtn" type="button" id="btnResetGray">灰階恢復預設</button>
-    </div>
     <p class="note">輸出圖檔只含勾選的向量圖層、方格網、註記與圖例，<b>不含底圖</b>；油印時建議線條灰階 0–80、面狀填色 200 以上。</p>
   </div>
 </aside>
@@ -481,8 +491,14 @@ class FileSource {
 class UrlSource {
   constructor(url) { this.url = url; this.name = decodeURIComponent(url.split('/').pop().split('?')[0]); this.size = 0; }
   async getBytes(offset, length) {
-    const ctrl = new AbortController();
-    const res = await fetch(this.url, { headers: { Range: `bytes=${offset}-${offset + length - 1}` }, signal: ctrl.signal });
+    let ctrl = new AbortController(), res;
+    const headers = { Range: `bytes=${offset}-${offset + length - 1}` };
+    try { res = await fetch(this.url, { headers, signal: ctrl.signal }); }
+    catch (err) {
+      // 部分預覽環境以 postMessage 轉送 fetch，無法傳遞 AbortSignal（DataCloneError）；改用不帶 signal 的請求再試一次
+      if (!(err && (err.name === 'DataCloneError' || /could not be cloned/i.test(err.message || '')))) throw err;
+      ctrl = { abort() {} }; res = await fetch(this.url, { headers });
+    }
     if (res.status === 200) {
       const len = +res.headers.get('content-length') || 0;
       if (len > length + 1024 * 1024) { ctrl.abort(); throw new Error('伺服器不支援 HTTP Range 分段讀取'); }
@@ -971,7 +987,38 @@ function patternStyle(c, name, e) {
 /* ============================================================
  * 圖層定義（id 對應 pmtiles 中的圖層名稱）
  * ============================================================ */
+const LANDSLIDE_BASE_GRAY = 215;   // 崩土的淺灰色底（0 黑～255 白），讓崩土與白色背景有所區別
 const contourDraw = w => function (c, F, e) { strokeLines(c, F, e, w * e.k, gs(e.g)); };
+/** 首曲線海拔區間：r = { min, max }（公尺，任一可為 null）；v 不在區間內回傳 false */
+/**
+ * 等高線高程值的合理性：1/25,000 經建版的等高線高程都是 2.5 m 的倍數
+ *（首曲線 10 m、計曲線 50 m、間曲線 5 m、助曲線 2.5 m）。不是 2.5 m 倍數的值（例如 3）必定是圖資錯誤，
+ * 篩選時當作「高程不明」。回傳 { v: 高程或 null, why: '' | 'none'（缺漏）| 'bad'（不合理） }
+ */
+const CONTOUR_STEP_M = 2.5;
+function contourElevOf(f) {
+  const v = numOrNull(pfirst(f.props, ELEV_FIELDS));
+  if (v === null) return { v: null, why: 'none' };
+  const q = v / CONTOUR_STEP_M;
+  if (Math.abs(q - Math.round(q)) > 1e-6) return { v: null, why: 'bad', raw: v };
+  return { v, why: '' };
+}
+function inContourRange(r, v) {
+  if (!r || (r.min == null && r.max == null)) return true;
+  if (v === null) return false;
+  return (r.min == null || v >= r.min) && (r.max == null || v <= r.max);
+}
+function contourRangeText(r) {
+  if (!r || (r.min == null && r.max == null)) return '';
+  if (r.min != null && r.max != null) return `${r.min}～${r.max} m`;
+  return r.min != null ? `${r.min} m 以上` : `${r.max} m 以下`;
+}
+/** 圖例文字：使用者改過的優先；首曲線有設海拔區間時自動標出區間 */
+function legendText(d, labels, range) {
+  if (labels && labels[d.id]) return labels[d.id];
+  if (d.id === 'ContourL' && contourRangeText(range)) return `首曲線（${contourRangeText(range)}）`;
+  return d.label;
+}
 const LAYER_DEFS = [
   // 點
   { id: 'ElevP', group: 'point', label: '獨立標高點', src: ['ElevP'], gray: 0, kind: 'point', sym: 'elev', numLabel: true },
@@ -991,7 +1038,18 @@ const LAYER_DEFS = [
   { id: 'WatrcrsL', group: 'line', label: '河流（單線水）', src: ['WatrcrsL'], gray: 70, draw(c, F, e) { strokeLines(c, F, e, 1.1 * e.k, gs(e.g)); } },
   { id: 'CoastL', group: 'line', label: '海岸線', src: ['CoastL'], gray: 0, draw(c, F, e) { strokeLines(c, F, e, 1.2 * e.k, gs(e.g)); } },
   { id: 'EmbankL', group: 'line', label: '堤防', src: ['EmbankL'], gray: 40, draw(c, F, e) { const col = gs(e.g); strokeLines(c, F, e, 1.2 * e.k, col); ticksAlong(c, F, e, 4.5 * e.k, 3 * e.k, false, 0.9 * e.k, col); } },
-  { id: 'ContourL', group: 'line', label: '首曲線（全部等高線）', src: ['ContourL'], gray: 120, draw: contourDraw(0.6) },
+  { id: 'ContourL', group: 'line', label: '首曲線（全部等高線）', src: ['ContourL'], gray: 120,
+    draw(c, F, e) {                                 // 可只顯示指定海拔區間內的首曲線
+      const r = e.o && e.o.contourRange;          // 圖層選單、圖例的小圖示沒有 e.o
+      if (r && (r.min != null || r.max != null)) {
+        F = F.filter(f => {
+          const el = contourElevOf(f);
+          if (el.why && e.o.stats) { if (el.why === 'bad') e.o.stats.badElev++; else e.o.stats.noElev++; }
+          return inContourRange(r, el.v);
+        });
+      }
+      if (F.length) strokeLines(c, F, e, 0.6 * e.k, gs(e.g));
+    } },
   { id: 'ContourL_zv50', group: 'line', label: '計曲線 50 m', src: ['ContourL_zv50'], gray: 50, draw: contourDraw(1.0) },
   { id: 'ContourL_zv100', group: 'line', label: '計曲線 100 m', src: ['ContourL_zv100'], gray: 40, draw: contourDraw(1.1) },
   { id: 'ContourL_zv200', group: 'line', label: '計曲線 200 m', src: ['ContourL_zv200'], gray: 30, draw: contourDraw(1.3) },
@@ -1005,7 +1063,7 @@ const LAYER_DEFS = [
   { id: 'waterbody', group: 'polygon', label: '水體（河川、湖泊、水庫、水池）', src: ['waterbody'], gray: 150, noFrame: true, draw(c, F, e) { fillPolys(c, F, e, gs(e.g)); } },
   { id: 'CoastA', group: 'polygon', label: '海洋', src: ['CoastA'], gray: 150, noFrame: true, draw(c, F, e) { fillPolys(c, F, e, gs(e.g)); } },
   { id: 'MarinelandA', group: 'polygon', label: '養殖池', src: ['MarinelandA'], gray: 90, draw(c, F, e) { fillPattern(c, F, e, 'marine'); strokePolys(c, F, e, 0.8 * e.k, gs(e.g)); } },
-  { id: 'LndfrmA_typ3', group: 'polygon', label: '崩土（崩塌地）', src: ['LndfrmA_typ3'], gray: 60, draw(c, F, e) { fillPattern(c, F, e, 'landslide'); strokePolys(c, F, e, 0.7 * e.k, gs(e.g), [2, 1.5]); } },
+  { id: 'LndfrmA_typ3', group: 'polygon', label: '崩土（崩塌地）', src: ['LndfrmA_typ3'], gray: 60, draw(c, F, e) { fillPolys(c, F, e, gs(LANDSLIDE_BASE_GRAY)); fillPolys(c, F, e, patternStyle(c, 'landslide', e)); strokePolys(c, F, e, 0.7 * e.k, gs(e.g), [2, 1.5]); } },
   { id: 'OrchardA_csp41', group: 'polygon', label: '水田', src: ['OrchardA_csp41'], gray: 60, draw(c, F, e) { fillPattern(c, F, e, 'paddy'); } },
   { id: 'OrchardA_csp51', group: 'polygon', label: '旱田', src: ['OrchardA_csp51'], gray: 60, draw(c, F, e) { fillPattern(c, F, e, 'dry'); } },
   { id: 'OrchardA_csp21', group: 'polygon', label: '果園', src: ['OrchardA_csp21'], gray: 60, draw(c, F, e) { fillPattern(c, F, e, 'orchard'); } },
@@ -1104,6 +1162,7 @@ function drawContourLabels(c, o, ts) {
     for (const f of F) {
       const v = numOrNull(pfirst(f.props, ELEV_FIELDS));
       if (v === null || v <= 0 || Math.round(v) % interval !== 0) continue;
+      if (id === 'ContourL' && !inContourRange(o.contourRange, v)) continue;
       screenParts([f], { tx, ty, ts }, a => {
         let total = 0;
         for (let i = 2; i < a.length; i += 2) total += Math.hypot(a[i] - a[i - 2], a[i + 1] - a[i - 1]);
@@ -1127,7 +1186,7 @@ function drawContourLabels(c, o, ts) {
 /** 圖例小圖（螢幕圖例、選單色票、輸出圖例共用） */
 function drawLegendGlyph(c, def, g, x, y, w, h, k) {
   c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
-  const e = { T: { tx: 0, ty: 0, ts: 1 }, k, g, pat: { x, y }, def };
+  const e = { T: { tx: 0, ty: 0, ts: 1 }, k, g, pat: { x, y }, def, o: {} };   // o：圖示沒有地圖狀態，給空物件避免讀取時出錯
   if (def.kind === 'point') {
     const s = 1.1 * k; c.strokeStyle = c.fillStyle = gs(g); c.lineCap = 'round';
     if (def.id === 'ElevP') { SYMBOLS.elev(c, x + w * 0.3, y + h / 2, s); haloText(c, '512', x + w * 0.3 + 3.4 * s, y + h / 2, 8 * k, gs(g), 'left'); }
@@ -1382,7 +1441,7 @@ function drawExportLegend(c, defs, grays, L, opt = {}) {
   if (!defs.length) return;
   const u = L.k * (opt.scale || 1), labels = opt.labels || {};
   const padX = 12 * u, padY = 8 * u, gw = 36 * u, gh = 16 * u, gap = 8 * u, rowH = 22 * u, font = 13 * u, titleFont = 14 * u, titleH = 24 * u;
-  const text = d => labels[d.id] || d.label;
+  const text = d => legendText(d, labels, opt.contourRange);
   c.save();
   const title = opt.title || '圖例';
   c.font = `700 ${titleFont}px ${FONT_STACK}`;
@@ -1418,7 +1477,7 @@ async function composeExport(o) {
   if (o.store && o.header && enabledVectorIds(o.enabled).length) {
     const dz = Math.max(o.header.minZoom, Math.min(o.header.maxZoom, Math.round(o.z))), f = Math.pow(2, o.z - dz);
     const tiles = await loadTileSet(o.store, dz, o.pbMin.x / f, o.pbMin.y / f, (o.pbMin.x + o.size.x) / f, (o.pbMin.y + o.size.y) / f, o.onProgress);
-    renderVector(c, { tiles, dz, originX: o.pbMin.x / f - fx / (f * k), originY: o.pbMin.y / f - fy / (f * k), scale: f * k, sym: k, enabled: o.enabled, grays: o.grays, contourLabels: o.contourLabels, skipPoints: o.skipPoints, order: o.order, fontScale: o.fontScale });
+    renderVector(c, { tiles, dz, originX: o.pbMin.x / f - fx / (f * k), originY: o.pbMin.y / f - fy / (f * k), scale: f * k, sym: k, enabled: o.enabled, grays: o.grays, contourLabels: o.contourLabels, skipPoints: o.skipPoints, order: o.order, fontScale: o.fontScale, contourRange: o.contourRange });
   }
   const grid = computeGrid({ rect: { x: fx, y: fy, w: fw, h: fh }, toLL, fromLL, minPx: 9 * k, labelMinPx: mm(9) });
   if (o.enabled.has('Grid')) drawGridLines(c, grid, Math.max(1, 0.8 * k), gs(o.grays.Grid ?? DEF.Grid.gray));
@@ -1436,7 +1495,7 @@ async function composeExport(o) {
 
   if (o.legend) {
     const defs = legendDefs(o.enabled, o.order);
-    drawExportLegend(c, defs, o.grays, L, { labels: o.legendLabels, title: o.legendTitle, scale: fontScaleOf(o, 'legend') });
+    drawExportLegend(c, defs, o.grays, L, { labels: o.legendLabels, title: o.legendTitle, scale: fontScaleOf(o, 'legend'), contourRange: o.contourRange });
   }
   drawFrameAndTicks(c, grid, { tick: mm(CONFIG.TICK_MM), font: mm(2.7) * fontScaleOf(o, 'coord'), gap: mm(0.8), lw: mm(0.18), frameLw: mm(0.3), color: '#000' });
 
@@ -1545,6 +1604,7 @@ const state = {
   fontScale: {},                        // 各類文字的字級倍率（見 FONT_CATS）
   legendLabels: {},                     // 使用者修改過的圖例文字
   legendTitle: '圖例',
+  contourRange: { min: null, max: null },   // 首曲線只顯示的海拔區間（不存檔，每次開啟都是全部）
   base: 'emap', contourLabels: true, legendExport: true, view: null,
   locked: false, inspect: false, userSized: false,
   annos: new Map(), annoSeq: 0, annoDeleted: new Set(), annoClassOn: new Set(), annoLayers: [], annoBg: false,
@@ -1630,7 +1690,7 @@ map.attributionControl.setPrefix(false);
   }, { passive: false });
   el.addEventListener('gestureend', e => { e.preventDefault(); if (z0 !== null) { z0 = null; map.fire('moveend'); } }, { passive: false });
 })();
-for (const [name, z] of [['vectorPane', 350], ['gridPane', 380], ['annoPane', 620], ['maskPane', 650]]) {
+for (const [name, z] of [['vectorPane', 350], ['gridPane', 380], ['annoPane', 620], ['maskPane', 650], ['maskLabelPane', 660]]) {
   const p = map.createPane(name); p.style.zIndex = z;
   if (name !== 'annoPane') p.style.pointerEvents = 'none';
 }
@@ -1698,8 +1758,10 @@ const VectorLayer = L.Layer.extend({
     const off = document.createElement('canvas');
     off.width = Math.round(size.x * dpr); off.height = Math.round(size.y * dpr);
     try {
+      const stats = { noElev: 0, badElev: 0 };
       renderVector(off.getContext('2d'), { tiles, dz, originX: pb.min.x / f, originY: pb.min.y / f, scale: f * dpr, sym: dpr,
-        enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels, skipPoints: state.ptDeleted, order: state.order, fontScale: state.fontScale });
+        enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels, skipPoints: state.ptDeleted, order: state.order, fontScale: state.fontScale, contourRange: state.contourRange, stats });
+      if (token === this._token) { const on = state.enabled.has('ContourL'); setContourNote(on ? stats.noElev : 0, on ? stats.badElev : 0); }
     } catch (err) { console.error(err); toast('繪製圖層時發生錯誤：' + err.message); }
     if (token !== this._token) return;
     const c = this._c;
@@ -1751,7 +1813,8 @@ map.on('zoomanim', () => { gridCanvas.style.visibility = 'hidden'; });
 /* ---------- 樂山雷達站遮罩（永遠在最上層） ---------- */
 const maskPoly = L.polygon(radarSquare(16), { renderer: L.svg({ pane: 'maskPane', padding: 0.5 }), interactive: false,
   color: '#5f6b75', weight: 1, dashArray: '5 4', fillColor: '#e6e9ec', fillOpacity: 1 }).addTo(map);
-L.marker([CONFIG.RADAR.lat, CONFIG.RADAR.lng], { pane: 'maskPane', interactive: false, keyboard: false,
+// 字卡放在遮罩上一層的獨立圖層：同一層時，字卡靠近畫面上緣會排到遮罩後面而被蓋住
+L.marker([CONFIG.RADAR.lat, CONFIG.RADAR.lng], { pane: 'maskLabelPane', interactive: false, keyboard: false,
   icon: L.divIcon({ className: 'mask-label', html: '<div>國防機敏區域<br>不予顯示</div>', iconSize: [0, 0] }) }).addTo(map);
 
 /* ---------- 比例尺滑桿（與滑鼠滾輪同步） ---------- */
@@ -1826,6 +1889,7 @@ function updateZoomUI() {
   slider.value = z; $('#zoomVal').textContent = fmtZoom(z);
   const screen = roundScale(MERC.metersPerPixel(lat, z) * 96 / 0.0254);
   let txt = `螢幕約 1:${screen.toLocaleString('en-US')}`;
+  if (state.archive && state.archive.header) txt += `｜圖磚 Z${clampZ(z, state.archive.header)}`;   // 目前讀取的圖磚層級
   if (state.locked) {
     const L0 = exportLayout(map.getSize(), fs('coord'));
     txt += `｜輸出約 1:${roundScale(printScaleDenominator(lat, z, L0.k, L0.dpi)).toLocaleString('en-US')}`;
@@ -1863,9 +1927,63 @@ function buildRows() {
       rng.addEventListener('input', () => { state.grays[def.id] = +rng.value; out.textContent = rng.value; glyphInto(cv, def); afterStyleChange(def, false); });
       body.appendChild(row);
       rowRefs[def.id] = { row, chk, rng, out, cv };
+      if (def.id === 'ContourL') body.appendChild(buildContourRangeRow(chk));
       glyphInto(cv, def);
     }
   }
+}
+/** 全形數字、全形小數點與減號轉為半形，去掉空白與千分位逗號（中文輸入法常打出全形數字） */
+function normalizeNumText(t) {
+  return String(t || '').replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/[．。]/g, '.').replace(/[－−ー—–]/g, '-').replace(/[\s,，]/g, '');
+}
+function buildContourRangeRow(chk) {
+  const r = document.createElement('div'); r.className = 'subrow crange'; r.hidden = !chk.checked;
+  r.innerHTML = `<span>只顯示海拔</span>
+    <input type="text" id="crMin" inputmode="decimal" autocomplete="off" placeholder="最低" aria-label="首曲線最低海拔（公尺，可留空）">
+    <span>～</span>
+    <input type="text" id="crMax" inputmode="decimal" autocomplete="off" placeholder="最高" aria-label="首曲線最高海拔（公尺，可留空）">
+    <span>m</span><button type="button" id="crClear" title="清除區間，顯示全部首曲線">清除</button>`;
+  const note = document.createElement('div'); note.className = 'crnote'; note.id = 'crNote'; note.hidden = true; note.setAttribute('role', 'status');
+  const lo = r.querySelector('#crMin'), hi = r.querySelector('#crMax');
+  let tm = 0;
+  const num = el => {
+    const t = normalizeNumText(el.value);
+    if (t === '') { el.removeAttribute('aria-invalid'); return null; }
+    const v = Number(t);
+    if (!Number.isFinite(v)) { el.setAttribute('aria-invalid', 'true'); return null; }   // 打錯的字不採用，輸入框標紅
+    el.removeAttribute('aria-invalid'); return v;
+  };
+  const apply = () => {
+    let a = num(lo), b = num(hi);
+    // 區間一律由小到大解讀；輸入框則保持使用者打的內容，不自動對調
+    //（自動對調會打斷正在進行的輸入，例如剛離開一格、正要修改另一格時）。實際套用的區間會顯示在圖例。
+    if (a != null && b != null && a > b) [a, b] = [b, a];
+    const same = state.contourRange.min === a && state.contourRange.max === b;
+    state.contourRange = { min: a, max: b };
+    r.classList.toggle('on', a != null || b != null);
+    if (!same) { buildLegend(); requestVectorRedraw(true); }
+    if (a == null && b == null) setContourNote(0);
+  };
+  for (const el of [lo, hi]) {
+    el.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(apply, 350); });
+    el.addEventListener('change', () => { clearTimeout(tm); apply(); });
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(tm); apply(); } });
+  }
+  r.querySelector('#crClear').addEventListener('click', () => { lo.value = ''; hi.value = ''; apply(); });
+  chk.addEventListener('change', () => { r.hidden = !chk.checked; if (!chk.checked) setContourNote(0); });
+  const wrap = document.createDocumentFragment(); wrap.append(r, note);
+  return wrap;
+}
+/** 篩選時，畫面中缺少高程值（無法判斷是否在區間內）的首曲線數量 */
+function setContourNote(nNone, nBad = 0) {
+  const el = document.getElementById('crNote'); if (!el) return;
+  el.hidden = !(nNone || nBad);
+  if (!(nNone || nBad)) return;
+  const parts = [];
+  if (nBad) parts.push(`${nBad} 段高程值不合理（不是 2.5 m 的倍數，例如 3 m）`);
+  if (nNone) parts.push(`${nNone} 段缺少高程值`);
+  el.textContent = `⚠ 畫面中的首曲線有 ${parts.join('、')}，篩選時不顯示（屬圖資問題）`;
 }
 function afterStyleChange(def, immediate) {
   buildLegend();
@@ -1901,7 +2019,7 @@ function buildLegend() {
     const grip = document.createElement('span'); grip.className = 'lg-grip'; grip.textContent = fixed ? '' : '⠿'; grip.setAttribute('aria-hidden', 'true');
     const cv = document.createElement('canvas'); cv.width = 72; cv.height = 32; cv.style.width = '36px'; cv.style.height = '16px';
     glyphInto(cv, d);
-    const sp = document.createElement('span'); sp.className = 'lg-label'; sp.textContent = state.legendLabels[d.id] || d.label;
+    const sp = document.createElement('span'); sp.className = 'lg-label'; sp.textContent = legendText(d, state.legendLabels, state.contourRange);
     sp.title = '雙擊可修改圖例文字';
     sp.addEventListener('dblclick', ev => { ev.stopPropagation(); editLegendLabel(sp, d); });
     const ls = fs('legend'); cv.style.width = (36 * ls) + 'px'; cv.style.height = (16 * ls) + 'px';
@@ -2530,7 +2648,7 @@ $('#btnExport').addEventListener('click', async () => {
     const res = await composeExport({
       z: map.getZoom(), pbMin: map.getPixelBounds().min, size: map.getSize(), store: state.store, header: state.archive && state.archive.header,
       enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels, legend: state.legendExport, order: state.order,
-      fontScale: state.fontScale, legendLabels: state.legendLabels, legendTitle: state.legendTitle,
+      fontScale: state.fontScale, legendLabels: state.legendLabels, legendTitle: state.legendTitle, contourRange: state.contourRange,
       skipPoints: state.ptDeleted,
       annos: allItems().filter(a => a.kind !== 'pt' || state.enabled.has(a.layer)).map(a => ({ kind: a.kind, sym: a.sym, scale: fs(fontCat(a)), lat: a.lat, lng: a.lng, text: a.text, rot: a.rot,
         fontPx: a.fontPx * fs(fontCat(a)), family: a.family, vertical: a.vertical, bg: a.bg, align: a.kind === 'pt' && a.text ? 'left' : 'center', offsetPx: PT_LABEL_OFFSET + 5 })),
@@ -2611,6 +2729,17 @@ window.addEventListener('resize', () => { if (!state.locked) layout(); else sche
 /* ---------- 啟動 ---------- */
 
 /* ---------- 快速導覽（第一次開啟時自動顯示；標題列「使用說明」可重新觀看） ---------- */
+/* ================================================================
+ * ★ 快速導覽的文字在這裡修改（搜尋 TOUR_STEPS 即可找到）
+ *   每一步是一組 { ... }：
+ *     sec   ：說明框左上角的小標（段落名稱）
+ *     title ：說明框標題
+ *     text  ：說明文字，每個 '…' 是一行（兩行以上會顯示成條列）；可增刪行，行與行之間以逗號分隔
+ *     video ：tour 資料夾中的示範影片檔名（沒有影片就整行刪除）
+ *     target：要照亮的控制項（請勿修改）
+ *   文字請放在半形單引號 '…' 之間；文字中若需要單引號，請改用全形「」或 ’。
+ *   修改後若希望已勾「下次不再顯示」的使用者也看到，請把 TOUR_VERSION 調高（例如 '1.1'）。
+ * ================================================================ */
 const TOUR_VERSION = '1.0';                  // 新增重要功能時調高版本號，已勾「不再顯示」的使用者也會再看到
 const TOUR_KEY = 'gray-topo-tour';
 const TOUR_VIDEO_DIR = 'tour/';
@@ -2624,7 +2753,7 @@ const TOUR_STEPS = [
     text: ['縮放滑桿和滑鼠滾輪都可以調整地圖比例尺。'] },
   { sec: '1. 底圖與地圖操作', title: '捷徑', target: dtRow('#btnTaiwan'),
     text: ['用選單快速聚焦地圖至行政區，也可一鍵回到全台。'] },
-  { sec: '1. 底圖與地圖操作', title: 'A4 橫式/直式', target: () => $('.drawer-top .a4btns'),
+  { sec: '1. 底圖與地圖操作', title: 'A4 橫式／直式', target: () => $('.drawer-top .a4btns'),
     text: ['可把地圖版型調整為橫式或直式。'] },
   { sec: '1. 底圖與地圖操作', title: '調整地圖大小', target: () => $('#mapWrap .rh-se'), pad: 14,
     text: ['滑鼠拖曳地圖右下角或右側可調整地圖寬度或高度。'] },
