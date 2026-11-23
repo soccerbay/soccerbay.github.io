@@ -104,12 +104,14 @@ button,input,select{font-family:inherit}
 .anno-box{position:absolute;left:0;top:0;transform-origin:50% 50%;padding:2px 6px;white-space:nowrap;line-height:1.15;color:#000;border:1px dashed rgba(36,87,127,.55);background:transparent;text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff,0 0 4px #fff;cursor:default;user-select:none}
 .anno-box .anno-text{display:block;outline:none}
 .anno-box .anno-text[contenteditable="true"]{background:#fffbe6;cursor:text;user-select:text}
-.anno-box .ah{position:absolute;width:18px;height:18px;padding:0;border:1px solid #6a7782;border-radius:50%;background:#fff;color:#1c2731;font:700 11px/16px var(--font);text-shadow:none;cursor:pointer;opacity:0;transition:opacity .12s;display:grid;place-items:center}
+.anno-box .ah{position:absolute;width:18px;height:18px;padding:0;border:1px solid #6a7782;border-radius:50%;background:#fff;color:#1c2731;font:700 11px/16px var(--font);text-shadow:none;cursor:pointer;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s;display:grid;place-items:center}
+.anno-box:not(.is-active){cursor:pointer}
 .anno-box .ah-rot{left:-11px;top:-11px;cursor:grab}
 .anno-box .ah-rot em{position:absolute;left:20px;top:-1px;font-style:normal;font-size:10px;font-weight:500;background:#fff;border:1px solid #c6ced5;padding:0 3px;border-radius:3px;white-space:nowrap}
 .anno-box .ah-del{right:-11px;top:-11px;color:var(--alert);font-size:13px}
 .anno-box .ah-move{left:-11px;bottom:-11px;cursor:move}
-.anno-box:hover .ah,.anno-box.is-active .ah{opacity:1}
+/* 編輯按鈕只出現在點選中的方塊（紅框）；其他方塊的按鈕隱藏且點不到，避免方塊重疊時誤按 */
+.anno-box.is-active .ah{opacity:1;visibility:visible;pointer-events:auto}
 .anno-box.is-active{border-color:var(--alert);border-style:solid;z-index:1}
 .anno-box .ah-bg{right:-11px;bottom:-11px;font-size:10px}
 .anno-box.bg{background:#fff;text-shadow:none}
@@ -117,6 +119,8 @@ button,input,select{font-family:inherit}
 .anno-box.sym .ah-rot,.anno-box.sym .ah-bg{display:none}
 .anno-box.pt{left:7px;transform-origin:50% 50%;padding:1px 4px}
 .anno-box.pt.noname{left:0;width:16px;height:16px;padding:0}
+/* 計曲線高程：白邊與圖上畫的一樣明顯，線條在數字處斷開 */
+.anno-box.cl{padding:0 3px;text-shadow:1px 0 #fff,-1px 0 #fff,0 1px #fff,0 -1px #fff,1px 1px #fff,-1px -1px #fff,1px -1px #fff,-1px 1px #fff,0 0 2px #fff}
 .anno-box.sym{padding:0;line-height:0}
 .anno-box.sym canvas{display:block;width:30px;height:30px}
 body.anno-clean .anno-box{border-color:transparent}
@@ -201,6 +205,8 @@ body.anno-clean .anno-box .ah{display:none}
 .row output{font-size:11px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
 .row.anno{grid-template-columns:18px minmax(0,1fr) auto}
 .row.anno small{color:var(--muted);font-size:11px;text-align:right;max-width:120px;line-height:1.3}
+.row.anno small .anno-restore{margin-left:4px;padding:0 5px;border:1px solid #9fb0bf;border-radius:3px;background:#fff;color:var(--ink);font:inherit;font-size:11px;line-height:1.5;cursor:pointer}
+.row.anno small .anno-restore:hover{background:#eef3f7}
 .row.anno .raw{display:block;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis}
 .sec-foot{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px}
 .sbtn{height:32px;padding:0 12px;border:1px solid #9fb0bf;border-radius:4px;background:#fff;color:var(--ink);font-size:13px;cursor:pointer}
@@ -360,14 +366,16 @@ body.anno-clean .anno-box .ah{display:none}
     <section class="sec" data-group="point">
       <div class="sec-head"><button type="button">1. 點圖層 (Point)</button><small>灰階</small></div>
       <div class="sec-body">
-        <div class="sec-opts"><span>勾選建物符號、交通設施後，地圖上會顯示名稱，可按方塊右上角 × 刪除個別的點。</span>
+        <div class="sec-opts"><span>勾選建物符號、交通設施後，地圖上會顯示名稱（名稱空白或「無名稱」的建物不顯示）；點一下名稱方塊（邊框變紅）後，按右上角 × 可刪除個別的點。</span>
           <button class="sbtn" type="button" id="ptRestore" hidden>恢復已刪除的點</button></div>
       </div>
     </section>
     <section class="sec" data-group="line">
       <div class="sec-head"><button type="button">2. 線圖層 (Line)</button><small>灰階</small></div>
       <div class="sec-body">
-        <div class="sec-opts"><label><input type="checkbox" id="optContourLabel" checked>計曲線標註高程</label></div>
+        <div class="sec-opts"><label><input type="checkbox" id="optContourLabel" checked>計曲線標註高程</label>
+          <span>確定範圍後，高程數字可點一下（邊框變紅）再移動、旋轉、刪除或加白底。</span>
+          <button class="sbtn" type="button" id="clRestore" hidden>恢復已刪除的高程</button></div>
       </div>
     </section>
     <section class="sec" data-group="polygon">
@@ -390,7 +398,7 @@ body.anno-clean .anno-box .ah{display:none}
           </div>
         </div>
         <div id="annoRows"></div>
-        <p class="note">方塊<b>左上角</b>拖曳可旋轉（按住 Shift 以 15° 為單位，點一下可輸入角度）、<b>右上角</b>刪除、<b>左下角</b>拖曳移動、<b>右下角</b>切換白底遮罩；<b>雙擊文字</b>可修改內容。建物、交通設施的名稱在確定範圍後也可以這樣調整，按 × 會連同點符號一起刪除。</p>
+        <p class="note">先<b>點一下</b>方塊（邊框變紅線）才會出現編輯按鈕：<b>左上角</b>拖曳可旋轉（按住 Shift 以 15° 為單位，點一下可輸入角度）、<b>右上角</b>刪除、<b>左下角</b>拖曳移動、<b>右下角</b>切換白底遮罩；<b>雙擊文字</b>可修改內容。建物、交通設施的名稱在確定範圍後也可以這樣調整，按 × 會連同點符號一起刪除；計曲線高程也一樣，按 × 只隱藏該高程（可在「2. 線圖層」恢復）。</p>
       </div>
     </section>
     <p class="note">輸出圖檔只含勾選的向量圖層、方格網、註記與圖例，<b>不含底圖</b>；油印時建議線條灰階 0–80、面狀填色 200 以上。</p>
@@ -440,6 +448,8 @@ const CONFIG = {
   EXPORT: { dpi: 300, marginMM: 13, footerMM: 6 },
   ANNO_CLASSES: [3, 4, 5, 8, 10],
   LABEL_FONT_PX: 12,                      // 建物／交通名稱、註記、自訂文字共用的預設字級（螢幕像素；輸出時等比例放大）
+  // 初步篩選：這些點圖層的名稱欄位為空白或「無名稱」時，整個點（符號與名稱）都不顯示、不輸出；設為 {} 可關閉
+  HIDE_UNNAMED_POINTS: { BuildP: 'bnm' },
   // 確定範圍後，第三、四類註記若與建物（bnm）、交通設施（tnm）名稱重複且距離在此範圍內，就不再顯示
   ANNO_DEDUPE_CLASSES: [3, 4],
   ANNO_DEDUPE_RADIUS_M: 400,
@@ -792,6 +802,16 @@ function pfirst(props, keys) { for (const k of keys) { const v = pget(props, k);
 const ELEV_FIELDS = ['zv2', 'zv', 'elev', 'elevation', 'ele', 'hgt', 'height', 'z'];
 const NAME_FIELDS = ['bnm', 'tnm', 'nam', 'name', '名稱', 'textstring'];
 const LABEL_FIELD = { BuildP: 'bnm', TransP: 'tnm' };
+/** 名稱是空白或「無名稱」（含全形空白、括號，例如「（無名稱）」） */
+function isUnnamedText(v) {
+  const t = String(v ?? '').normalize('NFKC').replace(/\s+/g, '').replace(/^[(\[【〔]+|[)\]】〕]+$/g, '');
+  return t === '' || t === '無名稱';
+}
+/** 依 CONFIG.HIDE_UNNAMED_POINTS 不顯示的點（例如 bnm 空白或「無名稱」的建物） */
+function isUnnamedPoint(layer, props) {
+  const field = CONFIG.HIDE_UNNAMED_POINTS && CONFIG.HIDE_UNNAMED_POINTS[layer];
+  return !!field && isUnnamedText(pget(props, field));
+}
 function numOrNull(v) { const n = typeof v === 'number' ? v : parseFloat(v); return Number.isFinite(n) ? n : null; }
 
 /* ============================================================
@@ -1122,7 +1142,7 @@ function collectFeats(layers, src) {
  * 向量繪製主程式（螢幕與輸出共用）
  * o = { tiles:[{x,y,layers}], dz（資料層級）, originX, originY（資料層級的全域像素）, scale（畫布像素／資料像素）,
  *       sym（符號倍率）, enabled:Set, grays:{}, contourLabels:boolean, skipPoints:Set（已刪除的點）, order:[]（由下而上）,
- *       fontScale:{ elev, contour }（字級倍率） }
+ *       fontScale:{ elev, contour }（字級倍率）, clDeleted:Set、clEdits:Map（註記模式刪除、改過的計曲線高程） }
  * ============================================================ */
 function renderVector(ctx, o) {
   const ts = 256 * o.scale;
@@ -1156,6 +1176,7 @@ function fontScaleOf(o, key) { return (o && o.fontScale && o.fontScale[key]) || 
 function drawPoints(c, F, e) {
   const col = gs(e.g), s = 1.15 * e.k, skip = e.o.skipPoints;
   for (const f of F) {
+    if (isUnnamedPoint(f.ln, f.props)) continue;                      // 名稱空白或「無名稱」的建物不畫
     const sc = e.T.ts / f.ext;
     for (const p of f.parts) {
       const gx = p[0], gy = p[1];
@@ -1172,12 +1193,18 @@ function drawPoints(c, F, e) {
     }
   }
 }
-function drawContourLabels(c, o, ts) {
-  const id = ['ContourL_zv50', 'ContourL_zv100', 'ContourL_zv200', 'ContourL_zv250', 'ContourL_zv500', 'ContourL_zv1000', 'ContourL'].find(i => o.enabled.has(i));
+const CONTOUR_LABEL_IDS = ['ContourL_zv50', 'ContourL_zv100', 'ContourL_zv200', 'ContourL_zv250', 'ContourL_zv500', 'ContourL_zv1000', 'ContourL'];
+/**
+ * 計曲線高程標註的位置（螢幕、輸出圖檔與註記模式的高程方塊共用同一套規則）。
+ * 每個標註呼叫 fn({ id, v, key, x, y, ang, gx, gy })：x、y 為畫布座標，ang 為沿線角度（弧度），gx、gy 為資料層級 dz 的全域像素。
+ * key 只由圖層、層級、高程與位置決定（不受畫面範圍、解析度影響），用來記住移動、旋轉、刪除過的高程。
+ */
+function contourLabelSpots(o, ts, fn) {
+  const id = CONTOUR_LABEL_IDS.find(i => o.enabled.has(i));
   if (!id) return;
   const def = DEF[id], interval = id === 'ContourL' ? 100 : +id.split('zv')[1];
   // 最短標註長度不隨字級放大：線段在圖磚邊界被切開，每段在畫面上最長約 360 px，放大門檻會讓大字級完全沒有標註
-  const fsc = fontScaleOf(o, 'contour'), col = gs(Math.min(60, o.grays[id] ?? def.gray)), size = 9 * o.sym * fsc, minLen = 150 * o.sym;
+  const minLen = 150 * o.sym;
   for (const t of o.tiles) {
     if (!t.layers) continue;
     const F = collectFeats(t.layers, def.src); if (!F.length) continue;
@@ -1198,12 +1225,30 @@ function drawContourLabels(c, o, ts) {
           if (ax < tx || ay < ty || ax >= tx + ts || ay >= ty + ts) return;   // 標註點須在本圖磚內
           let ang = Math.atan2(dy, dx);
           if (ang > Math.PI / 2) ang -= Math.PI; else if (ang < -Math.PI / 2) ang += Math.PI;
-          haloText(c, String(Math.round(v)), ax, ay, size, col, 'center', 'middle', ang);
+          const gx = t.x * 256 + (ax - tx) * 256 / ts, gy = t.y * 256 + (ay - ty) * 256 / ts, rv = Math.round(v);
+          fn({ id, v: rv, key: `${id}|${o.dz}|${rv}|${Math.round(gx * 10)}|${Math.round(gy * 10)}`, x: ax, y: ay, ang, gx, gy });
           return;
         }
       });
     }
   }
+}
+/** 畫計曲線高程；o.clDeleted：註記模式刪除過的高程，o.clEdits：註記模式移動、旋轉、改字過的高程（key → 方塊） */
+function drawContourLabels(c, o, ts) {
+  const id = CONTOUR_LABEL_IDS.find(i => o.enabled.has(i));
+  if (!id) return;
+  const fsc = fontScaleOf(o, 'contour'), col = gs(Math.min(60, o.grays[id] ?? DEF[id].gray)), size = 9 * o.sym * fsc;
+  contourLabelSpots(o, ts, s => {
+    if (o.clDeleted && o.clDeleted.has(s.key)) return;
+    const ed = o.clEdits && o.clEdits.get(s.key);
+    if (ed && ed.edited && isFinite(ed.lat) && isFinite(ed.lng)) {
+      const [X, Y] = MERC.project(ed.lat, ed.lng, o.dz);
+      drawAnnoItem(c, { text: String(ed.text ?? s.v), rot: ed.rot || 0, bg: !!ed.bg, align: 'center', color: col },
+        (X - o.originX) * o.scale, (Y - o.originY) * o.scale, size, o.sym);
+      return;
+    }
+    haloText(c, String(s.v), s.x, s.y, size, col, 'center', 'middle', s.ang);
+  });
 }
 
 /** 圖例小圖（螢幕圖例、選單色票、輸出圖例共用） */
@@ -1448,7 +1493,7 @@ function drawAnnoItem(c, a, x, y, size, k) {
   const w = a.vertical ? size : c.measureText(a.text).width, h = a.vertical ? chars.length * step : size * 1.15;
   const x0 = left ? 0 : -w / 2;
   if (a.bg) { const pad = size * 0.22; c.fillStyle = '#fff'; c.fillRect(x0 - pad, -h / 2 - pad, w + 2 * pad, h + 2 * pad); }
-  c.lineJoin = 'round'; c.lineWidth = size * 0.3; c.strokeStyle = '#fff'; c.fillStyle = '#000';
+  c.lineJoin = 'round'; c.lineWidth = size * 0.3; c.strokeStyle = '#fff'; c.fillStyle = a.color || '#000';   // 計曲線高程沿用線條的灰階
   if (a.vertical) {
     const y0 = -(chars.length - 1) * step / 2;
     chars.forEach((ch, i) => c.strokeText(ch, 0, y0 + i * step));
@@ -1500,7 +1545,8 @@ async function composeExport(o) {
   if (o.store && o.header && enabledVectorIds(o.enabled).length) {
     const dz = Math.max(o.header.minZoom, Math.min(o.header.maxZoom, Math.round(o.z))), f = Math.pow(2, o.z - dz);
     const tiles = await loadTileSet(o.store, dz, o.pbMin.x / f, o.pbMin.y / f, (o.pbMin.x + o.size.x) / f, (o.pbMin.y + o.size.y) / f, o.onProgress);
-    renderVector(c, { tiles, dz, originX: o.pbMin.x / f - fx / (f * k), originY: o.pbMin.y / f - fy / (f * k), scale: f * k, sym: k, enabled: o.enabled, grays: o.grays, contourLabels: o.contourLabels, skipPoints: o.skipPoints, order: o.order, fontScale: o.fontScale, contourRange: o.contourRange });
+    renderVector(c, { tiles, dz, originX: o.pbMin.x / f - fx / (f * k), originY: o.pbMin.y / f - fy / (f * k), scale: f * k, sym: k, enabled: o.enabled, grays: o.grays, contourLabels: o.contourLabels, skipPoints: o.skipPoints, order: o.order, fontScale: o.fontScale, contourRange: o.contourRange,
+      clDeleted: o.clDeleted, clEdits: o.clEdits });
   }
   const grid = computeGrid({ rect: { x: fx, y: fy, w: fw, h: fh }, toLL, fromLL, minPx: 9 * k, labelMinPx: mm(9) });
   if (o.enabled.has('Grid')) drawGridLines(c, grid, Math.max(1, 0.8 * k), gs(o.grays.Grid ?? DEF.Grid.gray));
@@ -1632,10 +1678,14 @@ const state = {
   locked: false, inspect: false, userSized: false,
   annos: new Map(), annoSeq: 0, annoDeleted: new Set(), annoClassOn: new Set(), annoLayers: [], annoBg: false,
   pts: new Map(), ptDeleted: new Set(), ptDeletedInfo: new Map(),   // 建物、交通設施的點名稱方塊；已刪除的點
+  cls: new Map(), clDeleted: new Set(), clActive: false,            // 計曲線高程方塊（確定範圍後）；已刪除的高程；高程是否改由方塊顯示
 };
 const PT_LAYERS = ['BuildP', 'TransP'];     // 有名稱方塊、可逐點刪除的點圖層
 const MAX_PT_BOXES = 2500;
 let ptWarned = false;
+const CONTOUR_LABEL_PX = 9;        // 計曲線高程方塊的字級，與圖上的高程相同（螢幕像素，再乘「計曲線高程」字級倍率）
+const MAX_CL_BOXES = 1500;
+let clWarned = false;
 (function loadPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem(PREF_KEY) || 'null'); if (!p) return;
@@ -1773,9 +1823,9 @@ const VectorLayer = L.Layer.extend({
     const m = this._map; if (!m) return;
     const token = ++this._token;
     const ids = enabledVectorIds(state.enabled);
-    if (!state.store || !ids.length) { this._clear(); syncPointItems(null); return; }
+    if (!state.store || !ids.length) { this._clear(); syncPointItems(null); syncContourItems(null); return; }
     const h = state.archive.header, z = m.getZoom();
-    if (z < h.minZoom) { this._clear(); if (!this._zoomHinted) { this._zoomHinted = true; toast(`向量圖層從 Zoom ${h.minZoom} 開始顯示，請放大地圖`); } return; }
+    if (z < h.minZoom) { this._clear(); syncContourItems(null); if (!this._zoomHinted) { this._zoomHinted = true; toast(`向量圖層從 Zoom ${h.minZoom} 開始顯示，請放大地圖`); } return; }
     const size = m.getSize(), pb = m.getPixelBounds(), nwLayer = m.containerPointToLayerPoint([0, 0]), nw = m.containerPointToLatLng([0, 0]);
     const dz = clampZ(z, h), f = Math.pow(2, z - dz);
     const tiles = await loadTileSet(state.store, dz, pb.min.x / f, pb.min.y / f, pb.max.x / f, pb.max.y / f,
@@ -1787,8 +1837,10 @@ const VectorLayer = L.Layer.extend({
     off.width = Math.round(size.x * dpr); off.height = Math.round(size.y * dpr);
     try {
       const stats = { noElev: 0, badElev: 0 };
+      syncContourItems(tiles, dz, pb, f);                     // 確定範圍後，計曲線高程改由可編輯的方塊顯示
       renderVector(off.getContext('2d'), { tiles, dz, originX: pb.min.x / f, originY: pb.min.y / f, scale: f * dpr, sym: dpr,
-        enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels, skipPoints: state.ptDeleted, order: state.order, fontScale: state.fontScale, contourRange: state.contourRange, stats });
+        enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels && !state.clActive, skipPoints: state.ptDeleted, order: state.order, fontScale: state.fontScale, contourRange: state.contourRange,
+        clDeleted: state.clDeleted, clEdits: state.cls, stats });
       if (token === this._token) { const on = state.enabled.has('ContourL'); setContourNote(on ? stats.noElev : 0, on ? stats.badElev : 0); }
     } catch (err) { console.error(err); toast('繪製圖層時發生錯誤：' + err.message); }
     if (token !== this._token) return;
@@ -2241,6 +2293,7 @@ function lockRange() {
   setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
   updateZoomUI();
   restyleAll();
+  requestVectorRedraw(true);                    // 計曲線高程轉為可編輯的方塊
   scanAnnoLayers();
   toast('範圍已鎖定。可在「4. 註記」加入文字，調整完成後按「輸出圖檔」。');
   updateSaveUI();
@@ -2260,22 +2313,54 @@ btnConfirm.addEventListener('click', () => (state.locked ? unlockRange() : lockR
 
 /* ---------- 註記 ---------- */
 const annoRows = $('#annoRows');
+/**
+ * 逐一取出「地圖框內」某些註記圖層的註記。勾選前的筆數與勾選後加入的註記都用這個函式，
+ * 規則一致：點位在地圖框內、不在遮蔽區、文字不是空白；同一個 anno_id 只算一次。
+ */
+function forEachAnnoInView(tiles, dz, names, fn) {
+  const b = map.getBounds(), seen = new Set();
+  for (const t of tiles) {
+    if (!t.layers) continue;
+    for (const name of names) {
+      const Ly = t.layers[name]; if (!Ly) continue;
+      for (const f of layerFeatures(Ly)) {
+        const raw = pget(f.props, 'textstring');
+        if (raw === undefined || raw === null || String(raw).trim() === '') continue;
+        for (const p of f.parts) {
+          if (p[0] < 0 || p[1] < 0 || p[0] >= f.ext || p[1] >= f.ext) continue;
+          const [lat, lng] = MERC.unproject(t.x * 256 + p[0] / f.ext * 256, t.y * 256 + p[1] / f.ext * 256, dz);
+          if (!b.contains([lat, lng]) || inRadarMask(lat, lng)) continue;
+          const srcId = String(pget(f.props, 'anno_id') ?? `${name}|${raw}|${lat.toFixed(6)}|${lng.toFixed(6)}`);
+          if (seen.has(srcId)) continue;
+          seen.add(srcId);
+          fn({ name, f, text: String(raw).trim(), lat, lng, srcId });
+        }
+      }
+    }
+  }
+}
 async function scanAnnoLayers() {
   if (!state.store) { annoRows.innerHTML = '<p class="note">請先載入 .pmtiles 檔，才能讀取註記圖層。</p>'; return; }
   annoRows.innerHTML = '<p class="note">正在搜尋此範圍內的註記圖層…</p>';
-  let tiles;
-  try { ({ tiles } = await viewTiles()); } catch (err) { annoRows.innerHTML = `<p class="note">讀取失敗：${err.message}</p>`; return; }
-  const found = new Map();
+  let tiles, dz;
+  try { ({ tiles, dz } = await viewTiles()); } catch (err) { annoRows.innerHTML = `<p class="note">讀取失敗：${err.message}</p>`; return; }
+  const names = new Set();
   for (const t of tiles) {
     if (!t.layers) continue;
     for (const name in t.layers) {
-      if (KNOWN_VECTOR.has(name)) continue;
+      if (KNOWN_VECTOR.has(name) || names.has(name)) continue;
       const fs = layerFeatures(t.layers[name]);
-      if (!fs.length || fs[0].type !== 1 || pget(fs[0].props, 'textstring') === undefined) continue;
-      found.set(name, (found.get(name) || 0) + fs.filter(f => f.parts.some(p => p[0] >= 0 && p[1] >= 0 && p[0] < f.ext && p[1] < f.ext)).length);
+      if (fs.length && fs[0].type === 1 && pget(fs[0].props, 'textstring') !== undefined) names.add(name);
     }
   }
-  state.annoLayers = [...found].map(([name, count]) => ({ name, count, cls: annoClassOf(name) }));
+  // 只算地圖框內的註記（圖磚會超出地圖框），並另外記下先前刪除過的筆數
+  const found = new Map([...names].map(n => [n, { count: 0, deleted: 0 }]));
+  forEachAnnoInView(tiles, dz, [...names], ({ name, srcId }) => {
+    const g = found.get(name); g.count++;
+    if (state.annoDeleted.has(srcId)) g.deleted++;
+  });
+  state.annoLayers = [...found].filter(([, g]) => g.count > 0)
+    .map(([name, g]) => ({ name, count: g.count, deleted: g.deleted, cls: annoClassOf(name) }));
   renderAnnoRows();
 }
 function renderAnnoRows() {
@@ -2293,10 +2378,11 @@ function renderAnnoRows() {
     if (g.other && !shownOther) { shownOther = true; const p = document.createElement('p'); p.className = 'note'; p.innerHTML = '<b>其他註記圖層</b>（未對應到上述類別；可在程式 CONFIG.ANNO_LAYER_CLASS 指定）'; annoRows.appendChild(p); }
     const row = document.createElement('div'); row.className = 'row anno';
     const cid = 'anno_' + g.key.replace(/[^\w]/g, '_');
-    const count = g.layers.reduce((s, l) => s + l.count, 0);
+    const count = g.layers.reduce((s, l) => s + l.count, 0), deleted = g.layers.reduce((s, l) => s + (l.deleted || 0), 0);
+    const idleText = () => (count ? `${count} 筆` + (deleted ? `（${deleted} 筆先前已刪除）` : '') : '');
     row.innerHTML = `<input type="checkbox" id="${cid}"><label for="${cid}">${g.title}<span class="raw"></span></label><small></small>`;
     row.querySelector('.raw').textContent = g.layers.length ? g.layers.map(l => l.name).join('、') : '此範圍內無此類圖層';
-    row.querySelector('small').textContent = g.layers.length ? `${count} 筆` : '';
+    row.querySelector('small').textContent = idleText();
     const chk = row.querySelector('input');
     chk.disabled = !g.layers.length;
     chk.checked = state.annoClassOn.has(g.key);
@@ -2305,11 +2391,21 @@ function renderAnnoRows() {
       chk.disabled = true;
       const r = await addAnnoGroup(g.key, g.layers.map(l => l.name));
       chk.disabled = false;
-      small.textContent = r.dup ? `顯示 ${r.added} 筆｜${r.dup} 筆與建物、交通名稱重複未顯示` : `顯示 ${r.added} 筆`;
+      const parts = [`顯示 ${r.added + r.shown} 筆`];
+      if (r.dup) parts.push(`${r.dup} 筆與建物、交通名稱重複未顯示`);
+      if (r.deletedIds.length) parts.push(`${r.deletedIds.length} 筆先前已刪除`);
+      small.textContent = parts.join('｜');
+      if (r.deletedIds.length) {                  // 先前逐一刪除的註記：可一次找回
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'anno-restore'; btn.textContent = '恢復';
+        btn.title = '把這一類先前刪除的註記放回地圖';
+        btn.addEventListener('click', () => { for (const id of r.deletedIds) state.annoDeleted.delete(id); load(); });
+        small.appendChild(btn);
+      }
     };
     chk.addEventListener('change', async () => {
       if (chk.checked) { state.annoClassOn.add(g.key); await load(); }
-      else { state.annoClassOn.delete(g.key); removeAnnoGroup(g.key); small.textContent = count ? `${count} 筆` : ''; }
+      else { state.annoClassOn.delete(g.key); removeAnnoGroup(g.key); small.textContent = idleText(); }
     });
     // 勾選後在該類別下方顯示專屬的字級滑桿
     const fkey = 'anno_' + g.key, fid = 'fs_' + cid, fv = Math.round(fs(fkey) * 100);
@@ -2360,41 +2456,27 @@ function isDuplicateName(text, lat, lng, refs) {
   return refs.some(r => sameName(n, r.n) && Math.hypot((r.lng - lng) * kx, (r.lat - lat) * 110540) <= R);
 }
 async function addAnnoGroup(key, names) {
-  if (!state.store) return { added: 0, dup: 0 };
+  if (!state.store) return { added: 0, dup: 0, shown: 0, deletedIds: [] };
   const cls = key.startsWith('c') ? +key.slice(1) : annoClassOf(key.slice(2));
   const refs = CONFIG.ANNO_DEDUPE_CLASSES.includes(cls) ? dedupeRefs() : [];
-  let dup = 0;
+  let dup = 0, added = 0, shown = 0; const deletedIds = [];
   busy('讀取註記…');
   const { tiles, dz } = await viewTiles();
-  const b = map.getBounds(); let added = 0;
   const existing = new Set([...state.annos.values()].map(a => a.srcId));
-  for (const t of tiles) {
-    if (!t.layers) continue;
-    for (const name of names) {
-      const Ly = t.layers[name]; if (!Ly) continue;
-      for (const f of layerFeatures(Ly)) {
-        const text = pget(f.props, 'textstring');
-        if (text === undefined || text === null || String(text).trim() === '') continue;
-        for (const p of f.parts) {
-          if (p[0] < 0 || p[1] < 0 || p[0] >= f.ext || p[1] >= f.ext) continue;
-          const [lat, lng] = MERC.unproject(t.x * 256 + p[0] / f.ext * 256, t.y * 256 + p[1] / f.ext * 256, dz);
-          if (!b.contains([lat, lng]) || inRadarMask(lat, lng)) continue;
-          const srcId = String(pget(f.props, 'anno_id') ?? `${name}|${text}|${lat.toFixed(6)}|${lng.toFixed(6)}`);
-          if (existing.has(srcId) || state.annoDeleted.has(srcId)) continue;
-          existing.add(srcId);
-          if (refs.length && isDuplicateName(text, lat, lng, refs)) { dup++; continue; }
-          const fz = estimateFontPx(f.props, text, lat);
-          createAnno({ key, srcId, text: String(text).trim(), lat, lng, rot: -(numOrNull(pget(f.props, 'angle')) || 0),
-            fontPx: fz.px, vertical: fz.vertical, family: cssFontFor(pget(f.props, 'fontname')) });
-          added++;
-        }
-      }
-    }
-  }
+  forEachAnnoInView(tiles, dz, names, ({ f, text, lat, lng, srcId }) => {
+    if (existing.has(srcId)) { shown++; return; }              // 已在地圖上（例如由存檔載入）
+    if (state.annoDeleted.has(srcId)) { deletedIds.push(srcId); return; }   // 先前逐一刪除過
+    existing.add(srcId);
+    if (refs.length && isDuplicateName(text, lat, lng, refs)) { dup++; return; }
+    const fz = estimateFontPx(f.props, text, lat);
+    createAnno({ key, srcId, text, lat, lng, rot: -(numOrNull(pget(f.props, 'angle')) || 0),
+      fontPx: fz.px, vertical: fz.vertical, family: cssFontFor(pget(f.props, 'fontname')) });
+    added++;
+  });
   busy('');
   updateAnnoCount();
   if (added > 600) toast(`已加入 ${added} 個註記，數量較多，建議放大範圍或刪減。`);
-  return { added, dup };
+  return { added, dup, shown, deletedIds };
 }
 function removeAnnoGroup(key) { for (const a of [...state.annos.values()]) if (a.key === key) removeAnno(a, false); updateAnnoCount(); }
 function updateAnnoCount() { $('#annoCount').textContent = state.annos.size ? `${state.annos.size} 個文字方塊` : ''; }
@@ -2404,6 +2486,7 @@ function styleAnno(a) {
   const sc = fs(fontCat(a));
   a.box.classList.toggle('bg', !!a.bg);
   a.box.classList.toggle('restricted', a.kind === 'pt' && !state.locked);
+  a.box.style.color = a.kind === 'cl' ? contourLabelColor(a.layer) : '';
   if (a.kind === 'sym') {
     a.box.style.transform = 'translate(-50%,-50%)';
     const cv = a.box.querySelector('canvas'), c = cv.getContext('2d');
@@ -2420,15 +2503,22 @@ function styleAnno(a) {
   a.txt.textContent = a.text;
   a.rotBtn.querySelector('em').textContent = normAngle(-a.rot) + '°';
 }
-function allItems() { return [...state.annos.values(), ...[...state.pts.values()].filter(p => p.marker)]; }
-function setActive(a) { for (const o of allItems()) o.box.classList.toggle('is-active', o === a); }
-/** 建立文字方塊。opt.kind：'text'（註記、自訂文字）、'pt'（建物／交通設施名稱）、'sym'（自訂點符號） */
+function allItems() { return [...state.annos.values(), ...[...state.pts.values()].filter(p => p.marker), ...[...state.cls.values()].filter(c => c.marker)]; }
+/** 點選方塊：只有這個方塊顯示編輯按鈕，並移到最上層（重疊時不會被其他方塊蓋住） */
+function setActive(a) {
+  for (const o of allItems()) {
+    const on = o === a;
+    if (o.box.classList.contains('is-active') !== on && o.marker && o.marker.setZIndexOffset) o.marker.setZIndexOffset(on ? 10000 : 0);
+    o.box.classList.toggle('is-active', on);
+  }
+}
+/** 建立文字方塊。opt.kind：'text'（註記、自訂文字）、'pt'（建物／交通設施名稱）、'cl'（計曲線高程）、'sym'（自訂點符號） */
 function createAnno(opt, register = true) {
   const a = Object.assign({ id: ++state.annoSeq, kind: 'text', rot: 0, bg: state.annoBg, family: FONT_STACK }, opt);
   const box = document.createElement('div'); box.className = 'anno-box ' + a.kind;
   box.innerHTML = (a.kind === 'sym' ? '<canvas width="60" height="60"></canvas>' : '<span class="anno-text"></span>')
     + '<button type="button" class="ah ah-rot" title="拖曳旋轉；點一下輸入角度（逆時針為正）">⟳<em></em></button>'
-    + `<button type="button" class="ah ah-del" title="${a.kind === 'pt' ? '刪除這個點（含名稱）' : '刪除'}">×</button>`
+    + `<button type="button" class="ah ah-del" title="${a.kind === 'pt' ? '刪除這個點（含名稱）' : a.kind === 'cl' ? '隱藏這個高程（可在「2. 線圖層」恢復）' : '刪除'}">×</button>`
     + '<button type="button" class="ah ah-move" title="拖曳移動">✥</button>'
     + '<button type="button" class="ah ah-bg" title="切換白底遮罩">▣</button>';
   a.box = box; a.txt = box.querySelector('.anno-text') || document.createElement('span'); a.rotBtn = box.querySelector('.ah-rot');
@@ -2441,7 +2531,7 @@ function createAnno(opt, register = true) {
   dragHandle(box.querySelector('.ah-move'), () => {
     if (!editable()) return null;
     const p0 = map.latLngToContainerPoint([a.lat, a.lng]);
-    return (dx, dy) => { const ll = map.containerPointToLatLng([p0.x + dx, p0.y + dy]); a.lat = ll.lat; a.lng = ll.lng; a.marker.setLatLng(ll); a.moved = true; };
+    return (dx, dy) => { const ll = map.containerPointToLatLng([p0.x + dx, p0.y + dy]); a.lat = ll.lat; a.lng = ll.lng; a.marker.setLatLng(ll); a.moved = true; a.edited = true; };
   });
   dragHandle(a.rotBtn, (start) => {
     if (!editable()) return null;
@@ -2449,15 +2539,15 @@ function createAnno(opt, register = true) {
     const a0 = Math.atan2(start.clientY - cy, start.clientX - cx), r0 = a.rot;
     return (dx, dy, ev) => {
       let d = r0 + (Math.atan2(ev.clientY - cy, ev.clientX - cx) - a0) * 180 / Math.PI;
-      a.rot = ev.shiftKey ? Math.round(d / 15) * 15 : Math.round(d); styleAnno(a);
+      a.rot = ev.shiftKey ? Math.round(d / 15) * 15 : Math.round(d); a.edited = true; styleAnno(a);
     };
   }, () => {
     if (!editable()) return;
     const v = prompt('輸入文字角度（度，逆時針為正）', String(normAngle(-a.rot)));
-    if (v !== null && isFinite(parseFloat(v))) { a.rot = -parseFloat(v); styleAnno(a); }
+    if (v !== null && isFinite(parseFloat(v))) { a.rot = -parseFloat(v); a.edited = true; styleAnno(a); }
   });
-  box.querySelector('.ah-bg').addEventListener('click', e => { e.stopPropagation(); a.bg = !a.bg; styleAnno(a); });
-  box.querySelector('.ah-del').addEventListener('click', e => { e.stopPropagation(); if (a.kind === 'pt') deletePoint(a); else removeAnno(a, true); });
+  box.querySelector('.ah-bg').addEventListener('click', e => { e.stopPropagation(); a.bg = !a.bg; a.edited = true; styleAnno(a); });
+  box.querySelector('.ah-del').addEventListener('click', e => { e.stopPropagation(); if (a.kind === 'pt') deletePoint(a); else if (a.kind === 'cl') deleteContourLabel(a); else removeAnno(a, true); });
   if (a.kind !== 'sym') {
     a.txt.addEventListener('dblclick', e => {
       e.stopPropagation();
@@ -2470,7 +2560,9 @@ function createAnno(opt, register = true) {
       if (a.txt.contentEditable !== 'true') return;
       a.txt.contentEditable = 'false';
       const v = a.txt.textContent.trim();
-      if (!v && a.kind === 'text') removeAnno(a, true); else { a.text = v; styleAnno(a); }
+      if (!v && a.kind === 'text') removeAnno(a, true);
+      else if (!v && a.kind === 'cl') deleteContourLabel(a);          // 高程清空＝隱藏
+      else { if (v !== a.text) a.edited = true; a.text = v; styleAnno(a); }
     });
   }
   if (register) state.annos.set(a.id, a);
@@ -2495,6 +2587,7 @@ function syncPointItems(tiles, dz) {
         const Ly = t.layers[id]; if (!Ly) continue;
         for (const f of layerFeatures(Ly)) for (const p of f.parts) {
           if (p[0] < 0 || p[1] < 0 || p[0] >= f.ext || p[1] >= f.ext) continue;
+          if (isUnnamedPoint(id, f.props)) continue;              // 名稱空白或「無名稱」的建物不建名稱方塊
           const key = pointKey(f, t, p, dz);
           if (state.ptDeleted.has(key)) continue;
           const [lat, lng] = MERC.unproject(t.x * 256 + p[0] / f.ext * 256, t.y * 256 + p[1] / f.ext * 256, dz);
@@ -2531,6 +2624,53 @@ $('#ptRestore').addEventListener('click', () => {
   if (state.locked) toast('已恢復。名稱方塊要在「解除範圍」後才會重新出現。');
   requestVectorRedraw(true);
 });
+/* ---------- 計曲線高程：確定範圍後變成可點選、移動、旋轉、刪除的方塊 ---------- */
+function contourLabelColor(id) { const d = DEF[id]; return gs(Math.min(60, state.grays[id] ?? (d ? d.gray : 0))); }
+/**
+ * 依目前畫面的圖磚同步高程方塊（每次重繪向量圖層時呼叫）。確定範圍前不建方塊，高程畫在圖上；
+ * 確定範圍後，地圖框內的高程改由方塊顯示（state.clActive = true），圖上不再畫，輸出圖檔也改畫方塊。
+ * 改過（移動、旋轉、改字、白底）的高程會保留，解除範圍後仍依改過的樣子畫在圖上；刪除的記在 state.clDeleted。
+ */
+function syncContourItems(tiles, dz, pb, f) {
+  const want = new Map();
+  if (state.locked && state.contourLabels && tiles) {
+    const b = map.getBounds();
+    contourLabelSpots({ tiles, dz, originX: pb.min.x / f, originY: pb.min.y / f, scale: f, sym: 1, enabled: state.enabled, contourRange: state.contourRange }, 256 * f, s => {
+      if (want.has(s.key) || state.clDeleted.has(s.key)) return;
+      const [lat, lng] = MERC.unproject(s.gx, s.gy, dz);
+      if (!b.contains([lat, lng]) || inRadarMask(lat, lng)) return;
+      want.set(s.key, { key: s.key, layer: s.id, plat: lat, plng: lng, lat, lng, rot: Math.round(s.ang * 1800 / Math.PI) / 10,
+        text: String(s.v), fontPx: CONTOUR_LABEL_PX, bg: state.annoBg });
+    });
+  }
+  state.clActive = want.size > 0 && want.size <= MAX_CL_BOXES;
+  for (const [key, it] of [...state.cls]) {
+    if (state.clActive && want.has(key)) continue;
+    if (it.marker) { map.removeLayer(it.marker); it.marker = null; }
+    if (!it.edited) state.cls.delete(key);            // 沒改過的不必保留，下次依圖磚重新產生
+  }
+  if (!state.clActive) {
+    if (want.size > MAX_CL_BOXES && !clWarned) { toast(`地圖框內有 ${want.size} 個計曲線高程，數量太多，暫不轉為可編輯的方塊；請放大地圖後再確定範圍。`, 5000); clWarned = true; }
+    return;
+  }
+  clWarned = false;
+  for (const [key, d] of want) {
+    const old = state.cls.get(key);
+    if (old && old.marker) { styleAnno(old); continue; }          // 已在地圖上：只更新灰階
+    const { marker, box, txt, rotBtn, ...data } = old || d;
+    state.cls.set(key, createAnno({ ...data, kind: 'cl', id: 'cl:' + key }, false));
+  }
+}
+function updateClRestore() {
+  const b = $('#clRestore'); b.hidden = !state.clDeleted.size; b.textContent = `恢復已刪除的高程（${state.clDeleted.size}）`;
+}
+function deleteContourLabel(a) {
+  state.clDeleted.add(a.key);
+  if (a.marker) { map.removeLayer(a.marker); a.marker = null; }
+  state.cls.delete(a.key);
+  updateClRestore();
+}
+$('#clRestore').addEventListener('click', () => { state.clDeleted.clear(); updateClRestore(); requestVectorRedraw(true); });
 function restyleAll() { for (const a of allItems()) styleAnno(a); }
 function dragHandle(el, begin, onClick) {
   el.style.touchAction = 'none';
@@ -2548,7 +2688,7 @@ map.on('click', e => { setActive(null); if (state.inspect) inspectAt(e.latlng); 
 const FONT_CATS = [
   { key: 'coord', label: 'TM2 座標', apply: () => { applyCoordMargins(); updateZoomUI(); } },
   { key: 'elev', label: '獨立標高點高程', apply: () => requestVectorRedraw() },
-  { key: 'contour', label: '計曲線高程', apply: () => requestVectorRedraw() },
+  { key: 'contour', label: '計曲線高程', apply: () => { requestVectorRedraw(); restyleAll(); } },
   { key: 'legend', label: '圖例', apply: () => buildLegend() },
   { key: 'pt_BuildP', label: '建物名稱' },
   { key: 'pt_TransP', label: '交通設施名稱' },
@@ -2572,6 +2712,7 @@ function applyCoordMargins() {
 }
 function fontCat(a) {
   if (a.kind === 'pt') return 'pt_' + a.layer;
+  if (a.kind === 'cl') return 'contour';
   if (a.kind === 'sym') return 'sym';
   if (a.key === 'custom') return 'custom';
   if (a.key) return 'anno_' + a.key;          // 各類註記：anno_c3、anno_c10、anno_n:圖層名稱
@@ -2645,6 +2786,7 @@ async function inspectAt(latlng) {
     const Ly = layers[name], sc = 256 / Ly.extent, hits = [];
     for (const ft of layerFeatures(Ly)) {
       let hit = false;
+      if (ft.type === 1 && isUnnamedPoint(name, ft.props)) continue;   // 未顯示的點不供查詢
       if (ft.type === 1) hit = ft.parts.some(p => Math.hypot(p[0] * sc - lx, p[1] * sc - ly) <= tol);
       else if (ft.type === 2) hit = ft.parts.some(p => { for (let i = 2; i < p.length; i += 2) if (segDist(lx, ly, p[i - 2] * sc, p[i - 1] * sc, p[i] * sc, p[i + 1] * sc) <= tol) return true; return false; });
       else {
@@ -2677,11 +2819,12 @@ $('#btnExport').addEventListener('click', async () => {
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
     const res = await composeExport({
       z: map.getZoom(), pbMin: map.getPixelBounds().min, size: map.getSize(), store: state.store, header: state.archive && state.archive.header,
-      enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels, legend: state.legendExport, order: state.order,
+      enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels && !state.clActive, legend: state.legendExport, order: state.order,
+      clDeleted: state.clDeleted, clEdits: state.cls,
       fontScale: state.fontScale, legendLabels: state.legendLabels, legendTitle: state.legendTitle, contourRange: state.contourRange,
       skipPoints: state.ptDeleted,
       annos: allItems().filter(a => a.kind !== 'pt' || state.enabled.has(a.layer)).map(a => ({ kind: a.kind, sym: a.sym, scale: fs(fontCat(a)), lat: a.lat, lng: a.lng, text: a.text, rot: a.rot,
-        fontPx: a.fontPx * fs(fontCat(a)), family: a.family, vertical: a.vertical, bg: a.bg, align: a.kind === 'pt' && a.text ? 'left' : 'center', offsetPx: PT_LABEL_OFFSET + 5 })),
+        fontPx: a.fontPx * fs(fontCat(a)), family: a.family, vertical: a.vertical, bg: a.bg, color: a.kind === 'cl' ? contourLabelColor(a.layer) : undefined, align: a.kind === 'pt' && a.text ? 'left' : 'center', offsetPx: PT_LABEL_OFFSET + 5 })),
       onProgress: (d, n) => { prog.value = Math.round(d / n * 90); msg.textContent = `正在讀取圖磚 ${d} / ${n}…`; },
     });
     msg.textContent = '正在壓縮 PNG…'; prog.value = 95;
@@ -2706,6 +2849,7 @@ const saveSel = $('#saveSel'), saveName = $('#saveName');
 const btnLoadSave = $('#btnLoadSave'), btnDelSave = $('#btnDelSave'), btnSave = $('#btnSave'), btnSaveAs = $('#btnSaveAs');
 const ANNO_SAVE_KEYS = ['kind', 'key', 'srcId', 'sym', 'text', 'lat', 'lng', 'rot', 'fontPx', 'vertical', 'family', 'bg', 'align', 'moved'];
 const PT_SAVE_KEYS = ['key', 'layer', 'plat', 'plng', 'lat', 'lng', 'rot', 'fontPx', 'text', 'bg', 'moved'];
+const CL_SAVE_KEYS = ['key', 'layer', 'plat', 'plng', 'lat', 'lng', 'rot', 'fontPx', 'text', 'bg'];
 const asArray = v => (Array.isArray(v) ? v : []);
 const isNum = v => typeof v === 'number' && Number.isFinite(v);
 const r7 = v => Math.round(v * 1e7) / 1e7;
@@ -2751,6 +2895,8 @@ function captureSave() {
     ptDeleted: [...state.ptDeleted], ptDeletedInfo: [...state.ptDeletedInfo],
     annos: [...state.annos.values()].map(a => pickKeys(a, ANNO_SAVE_KEYS)),
     pts: [...state.pts.values()].filter(p => p.marker).map(p => pickKeys(p, PT_SAVE_KEYS)),
+    clDeleted: [...state.clDeleted],                                   // 計曲線高程：刪除的、改過的（沒改過的會依圖磚重新產生）
+    cls: [...state.cls.values()].filter(c => c.edited).map(c => pickKeys(c, CL_SAVE_KEYS)),
   };
 }
 function setSaveBtn(b, green, usable = green) { b.classList.toggle('ok', green); b.setAttribute('aria-disabled', String(!usable)); }
@@ -2801,6 +2947,8 @@ function applySave(s) {
   for (const a of [...state.annos.values()]) removeAnno(a, false);
   for (const it of state.pts.values()) if (it.marker) map.removeLayer(it.marker);
   state.pts.clear();
+  for (const it of state.cls.values()) if (it.marker) map.removeLayer(it.marker);
+  state.cls.clear();
   // 圖層、灰階、繪製順序
   state.enabled = new Set(asArray(s.enabled).filter(id => DEF[id]));
   for (const d of LAYER_DEFS) {
@@ -2832,6 +2980,11 @@ function applySave(s) {
   state.ptDeleted = new Set(asArray(s.ptDeleted).map(String));
   state.ptDeletedInfo = new Map(asArray(s.ptDeletedInfo).filter(e => Array.isArray(e) && e.length === 2));
   $('#ptRestore').hidden = !state.ptDeleted.size; $('#ptRestore').textContent = `恢復已刪除的點（${state.ptDeleted.size}）`;
+  state.clDeleted = new Set(asArray(s.clDeleted).map(String)); updateClRestore();
+  for (const c of asArray(s.cls)) {                 // 改過的計曲線高程：確定範圍、重繪時依 key 放回
+    if (!c || !c.key || !c.layer || !isNum(c.lat) || !isNum(c.lng)) continue;
+    state.cls.set(String(c.key), { ...pickKeys(c, CL_SAVE_KEYS), key: String(c.key), text: String(c.text ?? ''), fontPx: isNum(c.fontPx) ? c.fontPx : CONTOUR_LABEL_PX, rot: isNum(c.rot) ? c.rot : 0, edited: true });
+  }
   buildFontRows();
   setBase(s.base === 'none' || BASEMAPS[s.base] ? s.base : 'emap');
   // 地圖大小（地圖版面）與檢視範圍：選單打開時的大小
@@ -2845,6 +2998,7 @@ function applySave(s) {
   // 鎖定範圍後放回點名稱與註記（鎖定後不會再依圖磚自動增減）
   for (const p of asArray(s.pts)) {
     if (!p || !p.key || !isNum(p.lat) || !isNum(p.lng)) continue;
+    if (CONFIG.HIDE_UNNAMED_POINTS && CONFIG.HIDE_UNNAMED_POINTS[p.layer] && isUnnamedText(p.text)) continue;   // 舊存檔中的無名稱建物
     state.pts.set(p.key, createAnno({ ...pickKeys(p, PT_SAVE_KEYS), kind: 'pt', id: 'pt:' + p.key, align: 'left' }, false));
   }
   for (const a of asArray(s.annos)) {
