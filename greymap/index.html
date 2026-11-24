@@ -113,10 +113,18 @@ button,input,select{font-family:inherit}
 /* 編輯按鈕只出現在點選中的方塊（紅框）；其他方塊的按鈕隱藏且點不到，避免方塊重疊時誤按 */
 .anno-box.is-active .ah{opacity:1;visibility:visible;pointer-events:auto}
 .anno-box.is-active{border-color:var(--alert);border-style:solid;z-index:1}
-.anno-box .ah-bg{right:-11px;bottom:-11px;font-size:10px}
+/* 右下角工具列：從方塊右下角往右排，不受方塊大小影響 */
+.anno-box .ah-bar{position:absolute;left:calc(100% - 7px);bottom:-11px;display:flex;gap:3px;pointer-events:none}
+.anno-box .ah-bar .ah{position:relative;flex:none}
+.anno-box .ah-b{font:800 12px/16px Georgia,"Times New Roman",serif}
+.anno-box .ah-i{font:italic 700 12px/16px Georgia,"Times New Roman",serif}
+.anno-box .ah-up,.anno-box .ah-dn{font-size:9px;letter-spacing:-.5px}
+.anno-box .ah-bg{font-size:10px}
+.anno-box.bold .ah-b,.anno-box.italic .ah-i,.anno-box.bg .ah-bg{background:#24577f;border-color:#24577f;color:#fff}
 .anno-box.bg{background:#fff;text-shadow:none}
-.anno-box.restricted .ah-rot,.anno-box.restricted .ah-move,.anno-box.restricted .ah-bg{display:none}
-.anno-box.sym .ah-rot,.anno-box.sym .ah-bg{display:none}
+.anno-box.restricted .ah-rot,.anno-box.restricted .ah-move,.anno-box.restricted .ah-bar{display:none}
+.anno-box.sym .ah-rot,.anno-box.sym .ah-bar{display:none}
+.anno-box.noname .ah-b,.anno-box.noname .ah-i,.anno-box.noname .ah-up,.anno-box.noname .ah-dn{display:none}
 .anno-box.pt{left:7px;transform-origin:50% 50%;padding:1px 4px}
 .anno-box.pt.noname{left:0;width:16px;height:16px;padding:0}
 /* 計曲線高程：白邊與圖上畫的一樣明顯，線條在數字處斷開 */
@@ -374,7 +382,7 @@ body.anno-clean .anno-box .ah{display:none}
       <div class="sec-head"><button type="button">2. 線圖層 (Line)</button><small>灰階</small></div>
       <div class="sec-body">
         <div class="sec-opts"><label><input type="checkbox" id="optContourLabel" checked>計曲線標註高程</label>
-          <span>確定範圍後，高程數字可點一下（邊框變紅）再移動、旋轉、刪除或加白底。</span>
+          <span>確定範圍後，高程數字可點一下（邊框變紅）再移動、旋轉、刪除，或調整粗體、斜體、字級與白底。</span>
           <button class="sbtn" type="button" id="clRestore" hidden>恢復已刪除的高程</button></div>
       </div>
     </section>
@@ -388,7 +396,7 @@ body.anno-clean .anno-box .ah{display:none}
         <div class="anno-tools">
           <details class="fontbox" open><summary>字級（個別調整）</summary><div id="fontRows"></div>
             <button class="sbtn" type="button" id="fontReset">字級全部恢復 100%</button></details>
-          <div class="line"><label><input type="checkbox" id="annoBgAll"> 文字加白底遮罩（套用全部，個別方塊可按右下角 ▣ 切換）</label></div>
+          <div class="line"><label><input type="checkbox" id="annoBgAll"> 文字加白底遮罩（套用全部，個別方塊可按右下方工具列的 ▣ 切換）</label></div>
           <div class="line"><select id="symPick" aria-label="要新增的點符號" style="flex:1;height:32px"></select>
             <button class="sbtn" type="button" id="symAdd">＋ 新增點符號</button></div>
           <div class="line">
@@ -398,7 +406,7 @@ body.anno-clean .anno-box .ah{display:none}
           </div>
         </div>
         <div id="annoRows"></div>
-        <p class="note">先<b>點一下</b>方塊（邊框變紅線）才會出現編輯按鈕：<b>左上角</b>拖曳可旋轉（按住 Shift 以 15° 為單位，點一下可輸入角度）、<b>右上角</b>刪除、<b>左下角</b>拖曳移動、<b>右下角</b>切換白底遮罩；<b>雙擊文字</b>可修改內容。建物、交通設施的名稱在確定範圍後也可以這樣調整，按 × 會連同點符號一起刪除；計曲線高程也一樣，按 × 只隱藏該高程（可在「2. 線圖層」恢復）。</p>
+        <p class="note">先<b>點一下</b>方塊（邊框變紅線）才會出現編輯按鈕：<b>左上角</b>拖曳可旋轉（按住 Shift 以 15° 為單位，點一下可輸入角度）、<b>右上角</b>刪除、<b>左下角</b>拖曳移動；<b>右下角</b>往右依序為粗體 <b>B</b>、斜體 <b>I</b>、放大字體 <b>A+</b>、縮小字體 <b>A−</b>、白底遮罩 <b>▣</b>（再按一次取消）；<b>雙擊文字</b>可修改內容。建物、交通設施的名稱在確定範圍後也可以這樣調整，按 × 會連同點符號一起刪除；計曲線高程也一樣，按 × 只隱藏該高程（可在「2. 線圖層」恢復）。</p>
       </div>
     </section>
     <p class="note">輸出圖檔只含勾選的向量圖層、方格網、註記與圖例，<b>不含底圖</b>；油印時建議線條灰階 0–80、面狀填色 200 以上。</p>
@@ -1243,8 +1251,8 @@ function drawContourLabels(c, o, ts) {
     const ed = o.clEdits && o.clEdits.get(s.key);
     if (ed && ed.edited && isFinite(ed.lat) && isFinite(ed.lng)) {
       const [X, Y] = MERC.project(ed.lat, ed.lng, o.dz);
-      drawAnnoItem(c, { text: String(ed.text ?? s.v), rot: ed.rot || 0, bg: !!ed.bg, align: 'center', color: col },
-        (X - o.originX) * o.scale, (Y - o.originY) * o.scale, size, o.sym);
+      drawAnnoItem(c, { text: String(ed.text ?? s.v), rot: ed.rot || 0, bg: !!ed.bg, bold: !!ed.bold, italic: !!ed.italic, align: 'center', color: col },
+        (X - o.originX) * o.scale, (Y - o.originY) * o.scale, size * (ed.fontPx || 9) / 9, o.sym);
       return;
     }
     haloText(c, String(s.v), s.x, s.y, size, col, 'center', 'middle', s.ang);
@@ -1473,10 +1481,11 @@ function exportLayout(size, coordScale) {
 function printScaleDenominator(lat, z, k, dpi) { return (MERC.metersPerPixel(lat, z) / k) / (0.0254 / dpi); }
 function roundScale(d) { const p = Math.pow(10, Math.floor(Math.log10(d)) - 1); return Math.round(d / p) * p; }
 
-/** 註記、點名稱、自訂符號的輸出繪製。a = { kind:'text'|'pt'|'sym', text, rot, family, vertical, bg, align, sym } */
+/** 註記、點名稱、自訂符號的輸出繪製。a = { kind:'text'|'pt'|'sym', text, rot, family, vertical, bg, bold, italic, align, sym } */
+function annoFont(a, size) { return `${a.italic ? 'italic ' : ''}${a.bold ? 700 : 500} ${size}px ${a.family || FONT_STACK}`; }
 function drawAnnoItem(c, a, x, y, size, k) {
   if (a.kind !== 'sym' && a.align === 'left') {          // 點名稱：以文字方塊中心為旋轉軸
-    c.save(); c.font = `500 ${size}px ${a.family || FONT_STACK}`;
+    c.save(); c.font = annoFont(a, size);
     const tw = a.vertical ? size : c.measureText(a.text).width; c.restore();
     return drawAnnoItem(c, Object.assign({}, a, { align: 'center' }), x + tw / 2, y, size, k);
   }
@@ -1486,7 +1495,7 @@ function drawAnnoItem(c, a, x, y, size, k) {
     (SYMBOLS[a.sym] || SYMBOLS.generic)(c, 0, 0, 1.15 * k * (a.scale || 1));
     c.restore(); return;
   }
-  c.font = `500 ${size}px ${a.family || FONT_STACK}`; c.textBaseline = 'middle';
+  c.font = annoFont(a, size); c.textBaseline = 'middle';
   const left = a.align === 'left';
   c.textAlign = left ? 'left' : 'center';
   const chars = [...a.text], step = size * 1.05;
@@ -2482,6 +2491,7 @@ function removeAnnoGroup(key) { for (const a of [...state.annos.values()]) if (a
 function updateAnnoCount() { $('#annoCount').textContent = state.annos.size ? `${state.annos.size} 個文字方塊` : ''; }
 function normAngle(d) { d = ((d % 360) + 540) % 360 - 180; return Math.round(d); }
 const PT_LABEL_OFFSET = 7;     // 點名稱方塊與點的水平距離（螢幕像素）
+const ANNO_FONT_MIN = 5, ANNO_FONT_MAX = 72;   // 個別方塊按 A+ / A− 時字級（乘上類別倍率前）的上下限
 function styleAnno(a) {
   const sc = fs(fontCat(a));
   a.box.classList.toggle('bg', !!a.bg);
@@ -2498,7 +2508,10 @@ function styleAnno(a) {
   const noname = a.kind === 'pt' && !a.text;
   a.box.classList.toggle('noname', noname);
   a.box.style.transform = (a.kind === 'pt' && !noname ? 'translate(0,-50%)' : 'translate(-50%,-50%)') + ` rotate(${a.rot}deg)`;
-  a.box.style.font = `500 ${(a.fontPx * sc).toFixed(1)}px ${a.family}`;
+  a.box.classList.toggle('bold', !!a.bold); a.box.classList.toggle('italic', !!a.italic);
+  a.box.style.font = annoFont(a, (a.fontPx * sc).toFixed(1));
+  const up = a.box.querySelector('.ah-up');
+  if (up) { const px = (a.fontPx * sc).toFixed(1).replace(/\.0$/, ''); up.title = `增大字體（目前 ${px} px）`; a.box.querySelector('.ah-dn').title = `縮小字體（目前 ${px} px）`; }
   a.txt.style.writingMode = a.vertical ? 'vertical-rl' : '';
   a.txt.textContent = a.text;
   a.rotBtn.querySelector('em').textContent = normAngle(-a.rot) + '°';
@@ -2520,7 +2533,13 @@ function createAnno(opt, register = true) {
     + '<button type="button" class="ah ah-rot" title="拖曳旋轉；點一下輸入角度（逆時針為正）">⟳<em></em></button>'
     + `<button type="button" class="ah ah-del" title="${a.kind === 'pt' ? '刪除這個點（含名稱）' : a.kind === 'cl' ? '隱藏這個高程（可在「2. 線圖層」恢復）' : '刪除'}">×</button>`
     + '<button type="button" class="ah ah-move" title="拖曳移動">✥</button>'
-    + '<button type="button" class="ah ah-bg" title="切換白底遮罩">▣</button>';
+    + '<span class="ah-bar">'                         // 右下角往右：粗體、斜體、放大、縮小、白底
+    + '<button type="button" class="ah ah-b" title="切換粗體字">B</button>'
+    + '<button type="button" class="ah ah-i" title="切換斜體字">I</button>'
+    + '<button type="button" class="ah ah-up" title="增大字體">A+</button>'
+    + '<button type="button" class="ah ah-dn" title="縮小字體">A−</button>'
+    + '<button type="button" class="ah ah-bg" title="切換白底遮罩">▣</button>'
+    + '</span>';
   a.box = box; a.txt = box.querySelector('.anno-text') || document.createElement('span'); a.rotBtn = box.querySelector('.ah-rot');
   styleAnno(a);
   a.marker = L.marker([a.lat, a.lng], { pane: 'annoPane', interactive: true, keyboard: false, bubblingMouseEvents: false,
@@ -2547,6 +2566,13 @@ function createAnno(opt, register = true) {
     if (v !== null && isFinite(parseFloat(v))) { a.rot = -parseFloat(v); a.edited = true; styleAnno(a); }
   });
   box.querySelector('.ah-bg').addEventListener('click', e => { e.stopPropagation(); a.bg = !a.bg; a.edited = true; styleAnno(a); });
+  // 個別方塊的字型：粗體、斜體切換；字級每按一次 ±1 px（之後仍會乘上該類別的字級倍率）
+  const tool = (sel, fn) => box.querySelector(sel).addEventListener('click', e => { e.stopPropagation(); if (!editable()) return; fn(); a.edited = true; styleAnno(a); });
+  tool('.ah-b', () => { a.bold = !a.bold; });
+  tool('.ah-i', () => { a.italic = !a.italic; });
+  const bump = d => { a.fontPx = Math.min(ANNO_FONT_MAX, Math.max(ANNO_FONT_MIN, Math.round((a.fontPx + d) * 2) / 2)); };
+  tool('.ah-up', () => bump(1));
+  tool('.ah-dn', () => bump(-1));
   box.querySelector('.ah-del').addEventListener('click', e => { e.stopPropagation(); if (a.kind === 'pt') deletePoint(a); else if (a.kind === 'cl') deleteContourLabel(a); else removeAnno(a, true); });
   if (a.kind !== 'sym') {
     a.txt.addEventListener('dblclick', e => {
@@ -2817,6 +2843,8 @@ $('#btnExport').addEventListener('click', async () => {
   ov.hidden = false; prog.value = 0; msg.textContent = '正在讀取圖磚…';
   try {
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const boldText = allItems().filter(a => a.bold && a.text).map(a => a.text).join('');   // 粗體字形先載入，輸出時才不會退回一般字重
+    if (boldText && document.fonts && document.fonts.load) { try { await document.fonts.load('700 16px "Noto Sans TC"', boldText); } catch (e) { /* 離線時改用系統字型 */ } }
     const res = await composeExport({
       z: map.getZoom(), pbMin: map.getPixelBounds().min, size: map.getSize(), store: state.store, header: state.archive && state.archive.header,
       enabled: state.enabled, grays: state.grays, contourLabels: state.contourLabels && !state.clActive, legend: state.legendExport, order: state.order,
@@ -2824,7 +2852,7 @@ $('#btnExport').addEventListener('click', async () => {
       fontScale: state.fontScale, legendLabels: state.legendLabels, legendTitle: state.legendTitle, contourRange: state.contourRange,
       skipPoints: state.ptDeleted,
       annos: allItems().filter(a => a.kind !== 'pt' || state.enabled.has(a.layer)).map(a => ({ kind: a.kind, sym: a.sym, scale: fs(fontCat(a)), lat: a.lat, lng: a.lng, text: a.text, rot: a.rot,
-        fontPx: a.fontPx * fs(fontCat(a)), family: a.family, vertical: a.vertical, bg: a.bg, color: a.kind === 'cl' ? contourLabelColor(a.layer) : undefined, align: a.kind === 'pt' && a.text ? 'left' : 'center', offsetPx: PT_LABEL_OFFSET + 5 })),
+        fontPx: a.fontPx * fs(fontCat(a)), family: a.family, vertical: a.vertical, bg: a.bg, bold: !!a.bold, italic: !!a.italic, color: a.kind === 'cl' ? contourLabelColor(a.layer) : undefined, align: a.kind === 'pt' && a.text ? 'left' : 'center', offsetPx: PT_LABEL_OFFSET + 5 })),
       onProgress: (d, n) => { prog.value = Math.round(d / n * 90); msg.textContent = `正在讀取圖磚 ${d} / ${n}…`; },
     });
     msg.textContent = '正在壓縮 PNG…'; prog.value = 95;
@@ -2847,9 +2875,9 @@ const SAVE_KEY = 'gray-topo-saves-v1';
 const SAVE_FORMAT = 'gray-topo-saves';
 const saveSel = $('#saveSel'), saveName = $('#saveName');
 const btnLoadSave = $('#btnLoadSave'), btnDelSave = $('#btnDelSave'), btnSave = $('#btnSave'), btnSaveAs = $('#btnSaveAs');
-const ANNO_SAVE_KEYS = ['kind', 'key', 'srcId', 'sym', 'text', 'lat', 'lng', 'rot', 'fontPx', 'vertical', 'family', 'bg', 'align', 'moved'];
-const PT_SAVE_KEYS = ['key', 'layer', 'plat', 'plng', 'lat', 'lng', 'rot', 'fontPx', 'text', 'bg', 'moved'];
-const CL_SAVE_KEYS = ['key', 'layer', 'plat', 'plng', 'lat', 'lng', 'rot', 'fontPx', 'text', 'bg'];
+const ANNO_SAVE_KEYS = ['kind', 'key', 'srcId', 'sym', 'text', 'lat', 'lng', 'rot', 'fontPx', 'vertical', 'family', 'bg', 'bold', 'italic', 'align', 'moved'];
+const PT_SAVE_KEYS = ['key', 'layer', 'plat', 'plng', 'lat', 'lng', 'rot', 'fontPx', 'text', 'bg', 'bold', 'italic', 'moved'];
+const CL_SAVE_KEYS = ['key', 'layer', 'plat', 'plng', 'lat', 'lng', 'rot', 'fontPx', 'text', 'bg', 'bold', 'italic'];
 const asArray = v => (Array.isArray(v) ? v : []);
 const isNum = v => typeof v === 'number' && Number.isFinite(v);
 const r7 = v => Math.round(v * 1e7) / 1e7;
