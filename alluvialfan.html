@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>沖積扇形成沙盒（320×240）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 地理課本旁的野外筆記本——安靜、清楚、讓老師一按就能講。
+   IDEA: 課本的「沖積扇塊體圖」被畫在色鉛筆素描紙上，而且會長大。
+   PICTURE: 可旋轉的 3D 山麓與沖積扇＋可自由拉的 A–B 剖面＋沿河道的水量與粒徑圖。
+   COLOUR and TYPE: 素描紙白、石墨灰、河水藍；礫石到泥由深褐漸變到淡綠灰。標題與圖上標註用霞鶩文楷，介面用系統黑體。
+   LAYOUT: 與河階沙盒相同：上方大塊體圖＋右側控制欄；下方 A–B 剖面，水量圖收在側邊抽屜。 */
+:root{color-scheme:light dark;
+  --bg:light-dark(#e9e8e3,#17181c);--ink:light-dark(#26252b,#ecebe6);--muted:light-dark(#5c5b63,#a9a8b0);
+  --paper:#f8f6f0;--paper-ink:#26252b;--line:light-dark(#cfcdc5,#33343b);--panel:light-dark(#f3f2ee,#202127);
+  --river:#2f6db5;--accent:#c2412d;--go:#2f7d46}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;overflow-x:clip}
+.hand{font-family:"LXGW WenKai TC","Kaiti TC","BiauKai","DFKai-SB",serif}
+header{padding:16px max(3vw,14px) 12px;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px 24px}
+h1{margin:0;font-size:clamp(26px,3.2vw,36px);line-height:1.1;font-weight:700;text-wrap:balance}
+.wrap{padding:0 max(3vw,14px) 24px;display:grid;gap:14px}
+.top{display:grid;grid-template-columns:minmax(0,1fr) 340px;grid-template-rows:auto 1fr;grid-template-areas:"view side" "secs side";gap:14px;align-items:start}
+.left{display:contents}.view{grid-area:view}aside{grid-area:side}.secs{grid-area:secs}
+.view{position:relative;height:clamp(380px,64vh,760px);background:var(--paper);border-radius:4px;box-shadow:0 1px 0 rgba(0,0,0,.08),0 8px 24px -16px rgba(0,0,0,.45);overflow:hidden;touch-action:none}
+.view canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+.view canvas:active{cursor:grabbing}
+.tag{position:absolute;left:0;top:0;pointer-events:none;color:var(--paper-ink);font-size:15px;white-space:nowrap;transform:translate(-50%,-120%);text-shadow:0 0 3px var(--paper),0 0 3px var(--paper),0 0 6px var(--paper)}
+.hint{position:absolute;left:12px;bottom:10px;font-size:13px;color:#6b6a72;pointer-events:none}
+.clock{position:absolute;left:10px;top:10px;color:var(--paper-ink);pointer-events:none;line-height:1.25;background:rgba(248,246,240,.88);border-radius:6px;padding:4px 10px 6px}
+.clock b{display:block;font-size:clamp(24px,3vw,34px);font-weight:700}
+.clock span{font-size:14px;color:#55545c}
+.views{position:absolute;right:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.views button{min-height:36px;padding:4px 10px;font-size:14px;background:rgba(248,246,240,.92);color:var(--paper-ink);border:1px solid #bdbab0}
+.nogl{position:absolute;inset:0;display:none;place-items:center;padding:24px;text-align:center;color:var(--paper-ink)}
+aside{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;display:grid;gap:14px}
+.stage{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--river);border-radius:6px;padding:10px 14px;display:flex;align-items:center;gap:16px;min-height:72px}
+.stage .txt{flex:1 1 auto}
+.stage.intro{border-left-color:var(--go)}
+.stage.intro p{font-size:17px}
+button.go{background:var(--go);border-color:var(--go);color:#fff;font-weight:700;font-size:18px;padding:8px 26px;flex:none}
+.stage h2{margin:0 0 2px;font-size:21px;line-height:1.2}
+.stage p{margin:0;font-size:16px;max-width:80ch}
+.stage.incise{border-color:var(--accent)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;min-height:44px;padding:6px 14px;border-radius:6px;border:1px solid var(--line);background:light-dark(#fff,#2a2b31);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--river);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;flex:1 1 auto}
+button.primary:disabled{opacity:.45;cursor:not-allowed}
+button.start{background:var(--go);border-color:var(--go);color:#fff;font-weight:700}
+button.start.cont{background:var(--river);border-color:var(--river)}
+@keyframes flash{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 4px color-mix(in srgb,var(--go) 45%,transparent)}}
+.grp.flash{animation:flash 1.4s ease-out 1;border-radius:6px}
+@media(prefers-reduced-motion:reduce){.grp.flash{animation:none}}
+button:disabled{opacity:.42;cursor:not-allowed}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.three button{padding:6px 4px;font-size:15px}
+.grp{display:grid;gap:10px}
+.grp+.grp{border-top:1px solid var(--line);padding-top:12px}
+.grp h3{margin:0;font-size:18px;font-weight:700}
+.plan{margin:0;font-size:13px;color:var(--muted)}
+.grp:not(.locked) .lockmsg{display:none}
+.grp.locked h3{color:var(--muted)}
+input:disabled{opacity:.5;cursor:not-allowed}
+input[type=number]{font:inherit;font-size:16px;min-height:40px;width:100%;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:light-dark(#fff,#2a2b31);color:var(--ink)}
+label.ctl{display:grid;grid-template-columns:5.6em minmax(0,1fr) 3.8em;align-items:center;gap:8px;font-size:15px}
+label.ctl output{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+input[type=range]{width:100%;accent-color:var(--river);height:28px}
+label.chk{display:flex;gap:8px;align-items:center;font-size:15px;min-height:32px}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--river)}
+select{font:inherit;font-size:16px;min-height:44px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:light-dark(#fff,#2a2b31);color:var(--ink)}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:14px;margin:0}
+.facts dt{color:var(--muted)}.facts dd{margin:0;font-variant-numeric:tabular-nums}
+.lgbox{position:absolute;right:10px;bottom:10px;max-width:min(320px,calc(100% - 20px));background:rgba(248,246,240,.93);border:1px solid #c9c6bc;border-radius:6px;padding:6px 10px 8px;color:var(--paper-ink);font-size:13px}
+.lgbox summary{cursor:pointer;font-size:14px;min-height:28px;display:flex;align-items:center;gap:6px}
+.lgbox[open] summary{margin-bottom:2px}
+.legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px;font-size:13px;list-style:none;margin:0;padding:0}
+.legend li{display:flex;gap:6px;align-items:center}
+.legend i{width:18px;height:12px;border-radius:2px;flex:none;border:1px solid rgba(0,0,0,.25)}
+.ptog{display:flex;align-items:center;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid #d6d3ca;font-size:13px;min-height:30px;cursor:pointer}
+.ptog input{width:18px;height:18px;accent-color:#2f7d46}
+.ptog i.dot,.legend i.dot{width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#6fa64a,#24521f);margin:0 3px}
+.hdl{position:absolute;left:0;top:0;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:#c2412d;color:#fff;font:700 16px/34px system-ui,sans-serif;text-align:center;box-shadow:0 0 0 3px rgba(248,246,240,.95),0 2px 6px rgba(0,0,0,.35);cursor:grab;touch-action:none;user-select:none;z-index:3}
+.hdl:active{cursor:grabbing}
+.hdl:focus-visible{outline:3px solid var(--river);outline-offset:3px}
+.lgh{margin:0 0 4px;font-size:12px;color:#5c5b63}
+.log{font-size:13px;color:var(--muted);margin:0;padding-left:1.1em;max-height:6.6em;overflow:auto}
+.secs{display:flex;gap:10px;align-items:stretch}
+.secs>figure{flex:1 1 auto}
+.drawer{display:flex;gap:10px;flex:none}
+.dtab{writing-mode:vertical-rl;min-width:44px;padding:12px 6px;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:6px;color:var(--ink)}
+.dtab .ar{writing-mode:horizontal-tb;font-size:14px}
+.drawer figure{width:min(420px,38vw)}
+.drawer figure[hidden]{display:none}
+figure{margin:0;background:var(--paper);border-radius:4px;box-shadow:0 1px 0 rgba(0,0,0,.08),0 8px 24px -18px rgba(0,0,0,.45);color:var(--paper-ink)}
+figure .fig{position:relative;height:270px}
+figure canvas{position:absolute;inset:0;width:100%;height:100%}
+figcaption{padding:10px 14px 0;font-size:18px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+figcaption small{font-family:"PingFang TC","Microsoft JhengHei",sans-serif;font-size:13px;color:#615f68}
+.note{font-size:13px;color:var(--muted);max-width:110ch;margin:0}
+@media(max-width:960px){.top{grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-template-areas:"view" "side" "secs"}.secs{flex-direction:column}.drawer{flex-direction:column}.dtab{writing-mode:horizontal-tb;min-height:44px;width:100%}.drawer figure{width:100%}}
+@media(max-width:760px){header{grid-template-columns:minmax(0,1fr)}.stage{flex-wrap:wrap}}
+@media(max-width:600px){.view{height:58vh}.views button{min-height:34px;padding:2px 8px;font-size:13px}}
+
+.hdl{position:absolute;left:0;top:0;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:#c2412d;color:#fff;font:700 16px/34px system-ui,sans-serif;text-align:center;box-shadow:0 0 0 3px rgba(248,246,240,.95),0 2px 6px rgba(0,0,0,.35);cursor:grab;touch-action:none;user-select:none;z-index:3}
+.hdl:active{cursor:grabbing}
+.hdl:focus-visible{outline:3px solid var(--river);outline-offset:3px}
+.legend i.spr{width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 40% 40%,#e9fbff,#2bb3c9 55%,#1f6f8c);margin:0 3px}
+.sarr{position:absolute;left:0;top:0;height:16px;transform-origin:0 50%;pointer-events:none}
+.sarr svg{display:block;overflow:visible}
+.legend i.arr{width:20px;height:12px;border:0;background:none;position:relative}
+.legend i.arr::before{content:'';position:absolute;left:1px;right:6px;top:5px;height:2px;background:#1f6fd0}
+.legend i.arr::after{content:'';position:absolute;right:0;top:1px;border-left:7px solid #1f6fd0;border-top:5px solid transparent;border-bottom:5px solid transparent}
+.flowkey{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#5c5b63;padding:2px 14px 0}
+.flowkey i{display:inline-block;width:14px;height:8px;margin-right:4px;vertical-align:middle;border-radius:2px}
+</style>
+</head>
+<body>
+<header>
+  <h1 class="hand">沖積扇是怎麼形成的？</h1>
+  <div class="stage intro" id="stage" aria-live="polite">
+    <div class="txt"><h2 class="hand" id="stageT" hidden></h2><p id="stageP">河流從陡峭的山區流出谷口，坡度突然變緩、河道不再受山壁限制，搬不動的砂石便在谷口一層層堆成扇形的沖積扇。</p></div>
+    <button class="go" id="go">開始</button>
+  </div>
+</header>
+<div class="wrap">
+  <div class="top">
+    <div class="left">
+    <div class="view" id="view">
+      <canvas id="gl" aria-label="山麓與沖積扇的 3D 塊體圖，可拖曳旋轉、平移"></canvas>
+      <div class="clock hand"><b id="clockYear">第 0 年</b><span id="clockSub">扇面半徑 0 m</span></div>
+      <div class="views" role="group" aria-label="視角">
+        <button data-view="bird">鳥瞰</button><button data-view="face">正對谷口</button><button data-view="top">俯視</button>
+      </div>
+      <div class="tag hand" id="tagMtn">山區</div>
+      <div class="tag hand" id="tagApex">扇頂（谷口）</div>
+      <div class="tag hand" id="tagMid">扇央</div>
+      <div class="tag hand" id="tagToe">扇端</div>
+      <div class="tag hand" id="tagSpr">湧泉帶</div>
+      <div id="arrows" aria-hidden="true"></div>
+      <div class="hdl" id="hA" tabindex="0" role="slider" aria-label="剖面線端點 A，可拖曳">A</div>
+      <div class="hdl" id="hB" tabindex="0" role="slider" aria-label="剖面線端點 B，可拖曳">B</div>
+      <div class="hint">拖曳旋轉・右鍵／Shift＋拖曳平移・滾輪縮放・拖 A、B 改剖面</div>
+      <details class="lgbox" id="lgbox" open><summary class="hand">圖例</summary><p class="lgh">沖積扇堆積物的顏色＝顆粒大小</p><ul class="legend" id="legend"></ul><label class="ptog"><input type="checkbox" id="plantOn"><i class="dot"></i>植物（勾選＝顯示）</label></details>
+      <div class="nogl" id="nogl">這台裝置的瀏覽器不支援 WebGL2，3D 圖無法顯示；下方的剖面圖仍會正常演化。</div>
+    </div>
+    <div class="secs">
+      <figure>
+        <figcaption class="hand">A–B 剖面<small id="secInfo">拖曳 3D 圖上的 A、B 點</small></figcaption>
+        <div class="fig"><canvas id="sec" aria-label="沿 A–B 線的地形剖面"></canvas></div>
+      </figure>
+      <div class="drawer">
+        <button class="dtab hand" id="dtab" aria-expanded="false" aria-controls="lonFig"><span class="ar" id="dtabAr">‹</span>水量與粒徑</button>
+        <figure id="lonFig" hidden>
+          <figcaption class="hand">沿主流路：河水量與顆粒大小<small>由扇頂往下游</small></figcaption>
+          <div class="flowkey"><span><i style="background:#3a78c6"></i>地表河水量</span><span><i style="background:#9a5b34;height:3px"></i>河床顆粒大小</span></div>
+          <div class="fig"><canvas id="lon" aria-label="沿主流路的河水量與顆粒大小"></canvas></div>
+        </figure>
+      </div>
+    </div>
+    </div>
+    <aside>
+      <section class="grp" id="setupBox">
+        <h3 class="hand">開始前：設定河流</h3>
+        <label class="ctl">輸沙量<input type="range" id="supply" min="1" max="3" step="1" value="2"><output id="supplyO">中</output></label>
+        <label class="ctl">河流水量<input type="range" id="flow" min="1" max="3" step="1" value="2"><output id="flowO">中</output></label>
+        <label class="ctl">地面徑流量<input type="range" id="runoff" min="0" max="100" step="10" value="50"><output id="runoffO">50%</output></label>
+        <label class="ctl">地形編號<input type="number" id="seed" min="1" max="999" value="7" inputmode="numeric"><output></output></label>
+        <p class="plan">輸沙量越多，扇長得越快；河流水量越大，河水能在扇面上流得越遠才滲入地下。地面徑流量是不會滲入地下、一路在地表流動的河水比例：0% 時河水會在扇頂附近全部滲光，比例越高，越容易看見河道在扇面上改道。地形編號決定山區與平原的細部起伏。</p>
+        <p class="plan lockmsg">模擬中已鎖定。按「重新模擬」可回到這一步重新設定。</p>
+      </section>
+      <section class="grp">
+        <div class="three">
+          <button class="start" id="start">開始模擬</button><button id="pause" disabled>暫停模擬</button><button id="restart" disabled>重新模擬</button>
+        </div>
+        <div class="row">
+          <button class="primary" id="flood">發生洪水</button>
+          <select id="floodAmt" aria-label="洪水規模"><option value="3.5">中洪水</option><option value="6" selected>大洪水</option></select>
+        </div>
+        <p class="plan" id="floodNote"></p>
+      </section>
+      <section class="grp">
+        <h3 class="hand">觀察</h3>
+        <label class="ctl">速度<input type="range" id="speed" min="1" max="40" value="10"><output id="speedO">10×</output></label>
+        <label class="ctl">垂直誇大<input type="range" id="ex" min="1" max="10" value="4"><output id="exO">×4</output></label>
+        <div class="row">
+          <label class="chk"><input type="checkbox" id="contour">等高線 5 m</label>
+          <label class="chk"><input type="checkbox" id="lineOn" checked>顯示剖面線</label>
+        </div>
+      </section>
+      <dl class="facts">
+        <dt>網格</dt><dd id="fGrid"></dd>
+        <dt>運算</dt><dd id="fCpu"></dd>
+        <dt>流暢度</dt><dd id="fFps">—</dd>
+        <dt>扇面半徑</dt><dd id="fR">—</dd>
+        <dt>扇頂高出平原</dt><dd id="fH">—</dd>
+        <dt>河道改道</dt><dd id="fAv">0 次</dd>
+        <dt>平常的河水</dt><dd id="fWet">—</dd>
+        <dt>湧泉</dt><dd id="fSpr">—</dd>
+      </dl>
+      <ol class="log" id="log" aria-label="事件紀錄"></ol>
+    </aside>
+  </div>
+  <p class="note">示意模型：平原以谷口為中心向四周下降 0.4%；河道由谷口沿最低的路線流下，有路徑記憶，河床墊高到旁邊明顯較低時才改道；砂石依粒徑在不同坡度與距離沉積（礫石最先、泥最遠）；河水依地表顆粒粗細滲入地下，扇體變薄、顆粒變細的扇端是地下水出露的湧泉帶。網格每格 20 m，時間尺度與速率都經過壓縮與簡化，數值僅供教學示意。</p>
+</div>
+<script>
+{
+// 沖積扇模擬核心：山區峽谷 → 谷口 → 平原。
+// 每一步：河道由峽谷沿最低路徑流出谷口（有路徑記憶，墊高到旁邊明顯較低時才改道）；
+// 砂石沿河道依粒徑分選堆積（礫石最先沉、泥最遠）；河水依地表粒徑滲入地下；
+// 扇端扇體變薄、顆粒變細處，地下水出露成湧泉。
+// 單位：水平以格為單位（1 格 = DX 公尺，預設 20 m；與尺度有關的參數都以公尺換算），高程公尺，時間年。
+function createFanSim(seed, opt) {
+  opt = opt || {};
+  const NX = opt.NX || 200, NY = opt.NY || 176, N = NX * NY;
+  const DX = opt.DX || 20, F = 20 / DX, SC = DX / 20, K = 12, DT = 5; // F：每 20 m 有幾格
+  const SUPPLY = opt.supply || 1, FLOW = opt.flow || 1;
+  const ROFF = opt.runoff == null ? 0.5 : opt.runoff; // 地面徑流量：不會滲入地下的河水比例
+  const XM = opt.XM || Math.round(46 * F); // 山麓線（谷口）位置
+  const SP = 0.004, ZM0 = 32;          // 平原以谷口為中心向四周的坡度、谷口處平原高程
+  const SM = 0.07;                     // 峽谷河床坡度
+  const MAT_PLAIN = 6, MAT_SOIL = 8, MAT_ROCK = 15;
+  const SK = [0.045, 0.026, 0.011, 0.0032];    // 各粒徑可堆積的臨界坡度：礫石、粗砂、細砂、粉砂黏土
+  const LK = [200, 450, 750, 1800];           // 各粒徑沉降距離 (m)
+  const RK = [1.6, 2.0, 2.6, 3.2].map(r => r * F); // 側向散布半徑 (cell)
+  const FK = [0.35, 0.30, 0.20, 0.15];        // 輸沙組成
+  const KINF = [0.05, 0.03, 0.012, 0.004, 0.005, 0, 0.005, 0, 0.005].map(v => v / F); // 每格滲漏量（佔平常流量的比例，原以 20 m 一格訂定）
+  const STEP_VOL = 45 * F * F;         // 每步輸沙量（格·公尺）：約 18,000 m³
+  const CH = 0.5;                      // 河槽深 (m)
+
+  // ---------- 亂數 ----------
+  let s0 = seed >>> 0;
+  function rnd() { s0 = (s0 + 0x6D2B79F5) >>> 0; let t = s0; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+  const PERM = new Float32Array(4096); for (let i = 0; i < 4096; i++) PERM[i] = rnd() * 2 - 1;
+  function lat(i, j) { return PERM[(((i * 73856093) ^ (j * 19349663)) >>> 0) & 4095]; }
+  function vnoise(x, y) {
+    const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
+    const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+    const a = lat(i, j), b = lat(i + 1, j), c = lat(i, j + 1), d = lat(i + 1, j + 1);
+    return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+  }
+  function fbm(x, y, o) { let s = 0, a = 0.5, f = 1; for (let k = 0; k < (o || 4); k++) { s += a * vnoise(x * f + 17.3 * k, y * f - 9.1 * k); a *= 0.5; f *= 2; } return s; }
+  const hash = c => { let h = (c * 2654435761) ^ (seed * 97); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+
+  // ---------- 網格 ----------
+  const rock = new Float32Array(N), surf = new Float32Array(N), base0 = new Float32Array(N);
+  const lt = new Float32Array(N * K), lm = new Uint8Array(N * K), ln = new Uint8Array(N);
+  const water = new Float32Array(N), flag = new Uint8Array(N); // flag: 1 有水河道 2 乾河床 3 湧泉 4 泉水小溪
+  const depA = new Float32Array(N), depG = new Float32Array(N), stamp = new Int32Array(N), prevMark = new Int32Array(N), wetMark = new Int32Array(N);
+  const rn = new Float32Array(N);
+  for (let c = 0; c < N; c++) rn[c] = rnd();
+  let stampId = 1, prevId = 0;
+
+  function deposit(c, a, m, absorb) { // absorb：薄於此厚度就併入最上層，不另開新層
+    if (!(a > 0)) return;
+    const b = c * K, n = ln[c];
+    if (n > 0 && (lm[b + n - 1] === m || (absorb && a < absorb && lm[b + n - 1] <= 3))) lt[b + n - 1] += a;
+    else if (n < K) { lm[b + n] = m; lt[b + n] = a; ln[c] = n + 1; }
+    else { // 堆疊已滿：保留最底的原有地層，把最薄的一對相鄰層合併
+      let j = 1, best = 1e9; for (let q = 1; q < K - 1; q++) { const t = lt[b + q] + lt[b + q + 1] + (lm[b + q] === lm[b + q + 1] ? -1e3 : 0); if (t < best) { best = t; j = q; } }
+      if (lt[b + j + 1] > lt[b + j]) lm[b + j] = lm[b + j + 1]; lt[b + j] += lt[b + j + 1];
+      for (let k = j + 1; k < K - 1; k++) { lt[b + k] = lt[b + k + 1]; lm[b + k] = lm[b + k + 1]; }
+      lm[b + K - 1] = m; lt[b + K - 1] = a;
+    }
+    surf[c] += a;
+  }
+  function erode(c, a) {
+    if (!(a > 0)) return;
+    const b = c * K; let r = a;
+    while (r > 0 && ln[c] > 0) { const t = b + ln[c] - 1; if (lt[t] > r + 1e-4) { lt[t] -= r; r = 0; } else { r -= lt[t]; lt[t] = 0; ln[c]--; } }
+    if (r > 0) rock[c] -= r;
+    surf[c] -= a; if (ln[c] === 0) surf[c] = rock[c];
+  }
+  function topMat(c) { const b = c * K; for (let k = ln[c] - 1; k >= 0; k--) if (lt[b + k] >= 0.1) return lm[b + k]; return MAT_ROCK; }
+  function topRaw(c) { return ln[c] ? lm[c * K + ln[c] - 1] : MAT_ROCK; }
+
+  // ---------- 初始地形 ----------
+  const ycan = x => NY / 2 + 5 * F * fbm(x * 0.04 / F, 2.3, 2);
+  const xfront = y => XM + 2.5 * F * fbm(y * 0.05 / F, 7.7, 3);
+  const APX = XM, APY = Math.round(ycan(XM));
+  // 平原：以谷口為中心，向四周均勻下降 0.4%
+  const zpl = (x, y) => ZM0 - SP * Math.hypot(x - APX, y - APY) * DX + 0.35 * fbm(x * 0.07 / F, y * 0.07 / F, 3);
+  const zMouth = zpl(XM, APY) + 0.8;
+  for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) {
+    const c = y * NX + x, zp = zpl(x, y);
+    rock[c] = zp - 8; surf[c] = rock[c]; ln[c] = 0; deposit(c, 8, MAT_PLAIN);
+    const xf = xfront(y);
+    if (x < xf + 4 * F) {
+      const u = Math.min(1, (xf + 4 * F - x) / (16 * F)), sm = u * u * (3 - 2 * u);
+      const zm = zp + sm * (95 + 70 * fbm(x * 0.025 / F, y * 0.025 / F, 4)) + Math.max(0, xf - x) * DX * 0.05 * sm;
+      const xc = Math.min(x, XM), dy = Math.abs(y - ycan(xc));
+      const zc = zMouth + SM * Math.max(0, XM - x) * DX + (dy <= 1.2 * F ? 0 : (dy - 1.2 * F) * DX * 0.42);
+      const top = Math.min(zm, x <= XM + 4 * F ? zc : 1e9);
+      if (top > zp + 0.3) { rock[c] = top - 1.2; ln[c] = 0; surf[c] = rock[c]; deposit(c, 1.2, MAT_SOIL); }
+    }
+    base0[c] = surf[c];
+  }
+  const START = (() => { const x = Math.max(1, XM - Math.round(14 * F)); return Math.round(ycan(x)) * NX + x; })();
+
+  // ---------- 植物 ----------
+  const PS = Math.max(2, Math.round(2 * F)), pNX = Math.floor(NX / PS), pNY = Math.floor(NY / PS), PN = pNX * pNY;
+  const plantX = new Float32Array(PN), plantY = new Float32Array(PN), plantCell = new Int32Array(PN);
+  const plantWet = new Float32Array(PN), plantDelay = new Float32Array(PN), plantSize = new Float32Array(PN);
+  const cellPlant = new Int32Array(N).fill(-1);
+  for (let j = 0; j < pNY; j++) for (let i = 0; i < pNX; i++) {
+    const k = j * pNX + i;
+    plantX[k] = Math.min(NX - 1.01, i * PS + 0.5 + rnd() * (PS - 1)); plantY[k] = Math.min(NY - 1.01, j * PS + 0.5 + rnd() * (PS - 1));
+    plantCell[k] = Math.round(plantY[k]) * NX + Math.round(plantX[k]); cellPlant[plantCell[k]] = k;
+    plantSize[k] = rnd() < 0.35 ? (0.9 + rnd() * 0.6) * F : 0; // 密度較低，讓顆粒顏色看得見
+    plantWet[k] = -5; plantDelay[k] = 30 + 70 * rnd();
+  }
+  const PLANT_QUIET = 5;
+  const KR = Math.max(1, Math.round(F));
+  function killPlant(c) { // 河水沖過或被砂石掩埋
+    for (let dy = -KR; dy <= KR; dy++) for (let dx = -KR; dx <= KR; dx++) {
+      const x = (c % NX) + dx, y = ((c / NX) | 0) + dy; if (x < 0 || y < 0 || x >= NX || y >= NY) continue;
+      const k = cellPlant[y * NX + x]; if (k < 0) continue;
+      if (plantWet[k] < year - DT - 0.1) plantDelay[k] = 30 + 70 * rnd();
+      plantWet[k] = year;
+    }
+  }
+
+  // ---------- 狀態 ----------
+  let year = 0, step = 0, avulsions = 0, floods = 0, floodNext = 0, lastFlood = -1e9, lastQ = 1;
+  let path = [], pathQ = [], pathS = [], wetEnd = 0, exitOut = false, rechargeAvg = 0, infFrac = 0;
+  let fanR = 0, apexH = 0, springs = [], springArrows = [], springQ = 0, infEnd = 0;
+  const events = [];
+  const W8 = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+  const kern = RK.map(r => { const R = Math.ceil(r * 1.5), a = []; let s = 0; for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { const w = Math.exp(-(dx * dx + dy * dy) / (2 * r * r)); if (w > 0.05) { a.push([dx, dy, w]); s += w; } } a.forEach(e => e[2] /= s); return a; });
+  const lobeK = (() => { const r = 3.5 * F, R = Math.ceil(6 * F), a = []; let s = 0; for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { const w = Math.exp(-(dx * dx + dy * dy) / (2 * r * r)); if (w > 0.05) { a.push([dx, dy, w]); s += w; } } a.forEach(e => e[2] /= s); return a; })();
+  const touched = [];
+  function addDep(o, a, k) { if (stamp[o] !== stampId) { stamp[o] = stampId; depA[o] = 0; depG[o] = 0; touched.push(o); } depA[o] += a; depG[o] += a * k; }
+  function spread(c, amt, k, K2) {
+    const x = c % NX, y = (c / NX) | 0;
+    for (const [dx, dy, w] of (K2 || kern[k])) {
+      const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= NX || yy >= NY) continue;
+      const o = yy * NX + xx;
+      if (surf[o] > surf[c] + 3) continue; // 不往山坡上堆
+      addDep(o, amt * w, k);
+    }
+  }
+  const wtmp = new Float32Array(256), otmp = new Int32Array(256);
+  function spreadAt(px, py, zc, amt, k, r) { // 以平滑後的流路位置為中心，高斯散布
+    const R = Math.ceil(r * 1.8), x0 = Math.round(px), y0 = Math.round(py); let n = 0, tot = 0;
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const xx = x0 + dx, yy = y0 + dy; if (xx < 0 || yy < 0 || xx >= NX || yy >= NY) continue;
+      const o = yy * NX + xx; if (surf[o] > zc + 3) continue;
+      const d2 = (xx - px) * (xx - px) + (yy - py) * (yy - py), w = Math.exp(-d2 / (2 * r * r)); if (w < 0.03) continue;
+      wtmp[n] = w; otmp[n] = o; tot += w; n++;
+    }
+    for (let q = 0; q < n; q++) addDep(otmp[q], amt * wtmp[q] / tot, k);
+  }
+
+  const candA = new Int32Array(8), scoA = new Float64Array(8), wA = new Float64Array(8);
+  function trace(B) {
+    const p = []; const vis = ++stampId; // 用 stamp 當作走訪記號（之後 spread 會換新 stampId）
+    let c = START, dx0 = 1, dy0 = 0; exitOut = false;
+    for (let it = 0; it < 900 * F; it++) {
+      p.push(c); stamp[c] = vis;
+      const x = c % NX, y = (c / NX) | 0;
+      if (x === NX - 1 || y === 0 || y === NY - 1) { exitOut = true; break; }
+      let best = -1, bs = 1e9, nc = 0;
+      for (const [dx, dy] of W8) {
+        const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= NX || yy >= NY) continue;
+        const o = yy * NX + xx; if (stamp[o] === vis) continue;
+        const len = dx && dy ? 1.4142 : 1, dot = (dx * dx0 + dy * dy0) / len;
+        if (dot < -0.1) continue;
+        const sc = (surf[o] - surf[c]) / len - (prevMark[o] === prevId ? B * SC : 0) + 0.04 * SC * (1 - dot);
+        candA[nc] = o; scoA[nc] = sc; nc++; if (sc < bs) { bs = sc; best = o; }
+      }
+      if (best < 0) break;
+      { // 依分數做機率選擇，讓流路自然蜿蜒、不沿網格直線
+        let tot = 0; const T = 0.035 * SC; for (let q = 0; q < nc; q++) { wA[q] = Math.exp(-(scoA[q] - bs) / T); tot += wA[q]; }
+        let r = rnd() * tot; for (let q = 0; q < nc; q++) { r -= wA[q]; if (r <= 0) { best = candA[q]; break; } }
+      }
+      if (surf[best] > surf[c] + 1.2) break; // 前方是高地：在此漫流堆積成朵狀堆積
+      const bx = best % NX - x, by = ((best / NX) | 0) - y, bl = Math.hypot(bx, by);
+      dx0 = 0.6 * dx0 + 0.4 * bx / bl; dy0 = 0.6 * dy0 + 0.4 * by / bl; const l2 = Math.hypot(dx0, dy0); dx0 /= l2; dy0 /= l2;
+      c = best;
+    }
+    return p;
+  }
+
+  function stepOnce() {
+    // 洪水：隨機發生，或由使用者觸發
+    let Qm = 1, flood = false;
+    if (floodNext > 0) { Qm = floodNext; floodNext = 0; flood = true; }
+    else if (rnd() < 0.1) { Qm = 2.5 + 2.5 * rnd(); flood = true; }
+    if (flood) { floods++; lastFlood = year; }
+    lastQ = Qm;
+    const B = flood ? 0.07 : 0.22;
+    const old = path;
+    path = trace(B);
+    // 改道判斷：新路徑在谷口下游與舊路徑分岔，且分岔後大部分不再重疊
+    if (old.length > 20 * F) {
+      let i = 0; while (i < path.length && i < old.length && path[i] === old[i]) i++;
+      const oldSet = prevId; let shared = 0;
+      for (let j = i; j < path.length; j++) if (prevMark[path[j]] === oldSet) shared++;
+      const rest = path.length - i;
+      const xi = path[Math.min(i, path.length - 1)] % NX;
+      const dAv = Math.hypot(xi - APX, ((path[Math.min(i, path.length - 1)] / NX) | 0) - APY) * DX;
+      if (rest > 15 * F && shared / rest < 0.35 && xi > XM && dAv <= Math.max(300, fanR * 1.05)) { avulsions++; events.push({ year, type: 'avulsion', d: dAv, flood }); } // 只計扇面上的改道
+    }
+    prevId++; for (const c of path) prevMark[c] = prevId;
+
+    // 砂石沿河道依粒徑分選堆積
+    stampId++; touched.length = 0;
+    const M = FK.map(f => f * STEP_VOL * SUPPLY * (flood ? 2 : 1));
+    const n = path.length;
+    pathQ = new Array(n); pathS = new Array(n);
+    const spx = new Float32Array(n), spy = new Float32Array(n), SW = Math.round(3 * F), SW2 = Math.max(1, Math.round(2 * F));
+    for (let i = 0; i < n; i++) { let sx = 0, sy = 0, w = 0; for (let j = Math.max(0, i - SW); j <= Math.min(n - 1, i + SW); j++) { sx += path[j] % NX; sy += (path[j] / NX) | 0; w++; } spx[i] = sx / w; spy[i] = sy / w; }
+    const Q0 = FLOW * Qm; let Qs = ROFF * Q0, Qi = (1 - ROFF) * Q0, inf = 0; wetEnd = n; infEnd = n;
+    let iApex = 0; for (let i = 0; i < n; i++) if (path[i] % NX >= APX) { iApex = i; break; }
+    for (let i = 0; i < n; i++) {
+      const c = path[i], nx = path[Math.min(n - 1, i + 1)];
+      const ds = Math.hypot((nx % NX) - (c % NX), ((nx / NX) | 0) - ((c / NX) | 0)) || 1, dsm = ds * DX;
+      const a = path[Math.max(0, i - SW2)], b = path[Math.min(n - 1, i + SW2)];
+      const span = Math.max(1, Math.hypot((b % NX) - (a % NX), ((b / NX) | 0) - ((a / NX) | 0))) * DX;
+      const S = Math.max(0, (surf[a] - surf[b]) / span);
+      for (let k = 0; k < 4; k++) {
+        if (M[k] <= 1e-6) continue;
+        const f = Math.max(0, Math.min(1, 1 - S / SK[k]));
+        const d = M[k] * (1 - Math.exp(-f * dsm / LK[k]));
+        if (d > 1e-5) { M[k] -= d; spread(Math.round(spy[i]) * NX + Math.round(spx[i]), d, k); }
+      }
+      if (Qi > 0) { const l = Math.min(Qi, (c % NX < APX ? 0.002 / F : KINF[topRaw(c)]) * FLOW * ds); Qi -= l; if (i >= iApex) inf += l; if (Qi <= 1e-6 && infEnd === n) infEnd = i; }
+      const Q = Qs + Math.max(0, Qi); if (Q <= 1e-6 && wetEnd === n) wetEnd = i;
+      pathQ[i] = Q / Q0;
+    }
+    { let acc = 0; for (let i = 0; i < n; i++) { pathS[i] = acc; const c = path[i], nx = path[Math.min(n - 1, i + 1)]; acc += Math.hypot((nx % NX) - (c % NX), ((nx / NX) | 0) - ((c / NX) | 0)) * DX; } const s0a = pathS[iApex]; for (let i = 0; i < n; i++) pathS[i] -= s0a; }
+    if (!exitOut) { const k0 = M.reduce((a, b) => a + b, 0); if (k0 > 0) { const g = M.reduce((a, b, k) => a + b * k, 0) / k0; spread(path[n - 1], k0, Math.round(g), lobeK); } }
+    for (const o of touched) {
+      const a = depA[o]; if (a <= 0) continue;
+      const ox = o % NX, oy = (o / NX) | 0; if (ox < bx0) bx0 = ox; if (ox > bx1) bx1 = ox; if (oy < by0) by0 = oy; if (oy > by1) by1 = oy;
+      deposit(o, a, Math.max(0, Math.min(3, Math.round(depG[o] / a))), 0.03);
+      if (a > 0.05) killPlant(o);
+    }
+    // 河槽：讓主流路略低於兩側
+    for (let i = 0; i < n; i++) {
+      const c = path[i], x = c % NX, y = (c / NX) | 0; if (x < APX - 2) continue;
+      let sum = 0, cnt = 0;
+      for (const [dx, dy] of W8) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= NX || yy >= NY) continue; const o = yy * NX + xx; if (prevMark[o] === prevId) continue; sum += surf[o]; cnt++; }
+      if (cnt) { const t = sum / cnt - CH; if (surf[c] > t) erode(c, Math.min(surf[c] - t, Math.max(0, surf[c] - base0[c]))); }
+    }
+    // 河水沖過的地方植物死亡；洪水時兩側也淹
+    const wetR = flood ? Math.round(3 * F) : 0;
+    for (let i = 0; i < Math.min(n, flood ? n : wetEnd + 1); i++) {
+      const c = path[i]; killPlant(c);
+      if (wetR) { const x = c % NX, y = (c / NX) | 0; for (let dy = -wetR; dy <= wetR; dy += Math.max(1, Math.round(2 * F))) for (let dx = -wetR; dx <= wetR; dx += Math.max(1, Math.round(2 * F))) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < NX && yy < NY) killPlant(yy * NX + xx); } }
+    }
+    if (!flood) { infFrac = inf / Q0; rechargeAvg = rechargeAvg * 0.9 + 0.1 * inf; }
+    else rechargeAvg = rechargeAvg * 0.9 + 0.1 * inf * 0.6;
+    diffuse();
+    if (step % 4 === 0) { if (step % 8 === 0) measure(); findSprings(); }
+    step++; year += DT;
+  }
+
+  // 扇面緩慢擴散：讓朵狀堆積連成平滑扇面（只移動沖積扇的砂石）
+  const remv = new Float32Array(N), addv = new Float32Array(N * 4);
+  const KDT = 0.12 * F, NSUB = Math.ceil(KDT / 0.24); // 細網格時擴散長度略短，換取速度
+  let bx0 = NX, bx1 = -1, by0 = NY, by1 = -1; // 沖積扇堆積物的範圍，擴散只在此範圍內計算
+  function diffuse() { if (bx1 < 0) return; for (let q = 0; q < NSUB; q++) { bx0 = Math.max(0, bx0 - 1); bx1 = Math.min(NX - 1, bx1 + 1); by0 = Math.max(0, by0 - 1); by1 = Math.min(NY - 1, by1 + 1); diffuse1(KDT / NSUB); } }
+  function diffuse1(KD) {
+    for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) { const c = y * NX + x; remv[c] = 0; addv[c * 4] = addv[c * 4 + 1] = addv[c * 4 + 2] = addv[c * 4 + 3] = 0; }
+    for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) {
+      const c = y * NX + x, m = topRaw(c); if (m > 3) continue;
+      const avail = surf[c] - base0[c]; if (avail <= 0.01) continue;
+      let out = 0;
+      for (let k = 0; k < 4; k++) {
+        const xx = x + (k === 0 ? 1 : k === 1 ? -1 : 0), yy = y + (k === 2 ? 1 : k === 3 ? -1 : 0);
+        if (xx < 0 || yy < 0 || xx >= NX || yy >= NY) continue;
+        const o = yy * NX + xx, d = surf[c] - surf[o];
+        if (d > 0.02 && surf[o] < surf[c]) { let a = KD * d; if (out + a > avail * 0.5) a = Math.max(0, avail * 0.5 - out); out += a; addv[o * 4 + m] += a; }
+      }
+      remv[c] = out;
+    }
+    for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) { const c = y * NX + x; if (remv[c] > 0) erode(c, remv[c]); }
+    for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) { const c = y * NX + x; for (let m = 0; m < 4; m++) { const a = addv[c * 4 + m]; if (a > 0) deposit(c, a, m, 0.06); } }
+  }
+
+  function measure() {
+    const ds = [];
+    let h = 0;
+    for (let c = 0; c < N; c++) {
+      const t = surf[c] - base0[c]; if (t < 1.5) continue;
+      const x = c % NX, y = (c / NX) | 0; if (x < APX) continue;
+      ds.push(Math.hypot(x - APX, y - APY));
+      if (Math.hypot(x - APX, y - APY) < 4 * F) h = Math.max(h, t);
+    }
+    ds.sort((a, b) => a - b);
+    fanR = ds.length ? ds[Math.floor(ds.length * 0.95)] * DX : 0;
+    apexH = h;
+  }
+  // 湧泉：扇端扇體變薄（地下水面約在原平原面上 1 m）且地表顆粒細的地方
+  function findSprings() {
+    springs = []; springArrows = [];
+    const Rc = fanR / DX;
+    if (Rc < 12 * F) return;
+    const cand = [];
+    for (let y = 2; y < NY - 2; y++) for (let x = APX + 2; x < NX - 2; x++) {
+      const c = y * NX + x, t = surf[c] - base0[c];
+      if (t < 0.35 || t > 1.3) continue;
+      const m = topRaw(c); if (m < 1 || m > 3) continue;
+      const r = Math.hypot(x - APX, y - APY); if (r < 0.5 * Rc || r > 1.3 * Rc) continue;
+      if (flag[c] === 1) continue;
+      // 扇緣：往扇外一步，扇體就更薄
+      const ux = (x - APX) / r, uy = (y - APY) / r, o = Math.round(y + uy * 2 * F) * NX + Math.round(x + ux * 2 * F);
+      if (surf[o] - base0[o] > 0.3) continue;
+      cand.push([c, Math.atan2(y - APY, x - APX), hash(c)]);
+    }
+    cand.sort((a, b) => a[2] - b[2]);
+    for (const [c] of cand) {
+      if (springs.length >= 14) break;
+      const x = c % NX, y = (c / NX) | 0;
+      if (springs.some(s => Math.hypot((s % NX) - x, ((s / NX) | 0) - y) < 11 * F)) continue;
+      springs.push(c);
+    }
+    springQ = springs.length ? rechargeAvg * 0.85 / springs.length : 0;
+    // 泉水流向：由每個湧泉沿最陡坡往下走一小段（只畫箭頭，不畫小溪）
+    for (const s of springs) {
+      let c = s;
+      for (let it = 0; it < Math.round(8 * F); it++) {
+        const x = c % NX, y = (c / NX) | 0; if (x === NX - 1 || y === 0 || y === NY - 1) break;
+        let best = -1, bz = surf[c];
+        for (const [dx, dy] of W8) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= NX || yy >= NY) continue; const o = yy * NX + xx; if (surf[o] < bz) { bz = surf[o]; best = o; } }
+        if (best < 0) break; c = best;
+      }
+      springArrows.push([s % NX, (s / NX) | 0, c % NX, (c / NX) | 0]);
+    }
+  }
+  function computeWater() {
+    water.fill(0); flag.fill(0);
+    for (const c of springs) { water[c] = Math.max(water[c], 0.35); flag[c] = 3; }
+    for (let i = 0; i < path.length; i++) {
+      const c = path[i];
+      if (i < wetEnd) { water[c] = 0.25 + 0.65 * Math.sqrt(pathQ[i] || 0) * Math.min(2, Math.sqrt(lastQ)); flag[c] = 1; }
+      else if ((c % NX) >= APX - 2) flag[c] = 2;
+    }
+  }
+  function run(n) { for (let i = 0; i < n; i++) stepOnce(); computeWater(); }
+  function triggerFlood(mult) { floodNext = mult; }
+
+  function plants(out) {
+    let n = 0;
+    for (let k = 0; k < PN; k++) {
+      if (plantSize[k] === 0) continue;
+      const a = year - plantWet[k] - PLANT_QUIET - plantDelay[k]; if (a < 0) continue;
+      const c = plantCell[k], x = c % NX, y = (c / NX) | 0;
+      if (water[c] > 0.05 || flag[c] === 2) continue;
+      const h = surf[c];
+      const g = Math.max(Math.abs(h - surf[c - (x > 0 ? 1 : 0)]), Math.abs(h - surf[c + (x < NX - 1 ? 1 : 0)]), Math.abs(h - surf[c - (y > 0 ? NX : 0)]), Math.abs(h - surf[c + (y < NY - 1 ? NX : 0)]));
+      if (g > 12) continue;
+      out[n * 4] = plantX[k]; out[n * 4 + 1] = plantY[k]; out[n * 4 + 2] = plantSize[k]; out[n * 4 + 3] = a; n++;
+    }
+    return n;
+  }
+  function springPts(out) { let n = 0; for (const c of springs) { out[n * 4] = c % NX; out[n * 4 + 1] = (c / NX) | 0; out[n * 4 + 2] = 2.2 * F; out[n * 4 + 3] = 999; n++; } return n; }
+
+  computeWater();
+  return {
+    NX, NY, N, DX, K, DT, APX, APY, XM, MAT_PLAIN, MAT_SOIL, MAT_ROCK, PN,
+    rock, surf, lt, lm, ln, base0, water, flag,
+    get year() { return year; }, get avulsions() { return avulsions; }, get floods() { return floods; }, get lastFlood() { return lastFlood; },
+    get fanR() { return fanR; }, get apexH() { return apexH; }, get springs() { return springs; }, get springArrows() { return springArrows; }, get infEnd() { return infEnd; }, ROFF, get infFrac() { return infFrac; },
+    get path() { return path; }, get pathQ() { return pathQ; }, get pathS() { return pathS; }, get wetEnd() { return wetEnd; }, get lastQ() { return lastQ; },
+    events, run, triggerFlood, topMat, plants, springPts,
+    infDist() { const i = Math.min(infEnd, path.length - 1); return i >= 0 && pathS.length ? Math.max(0, pathS[i]) : 0; },
+    wetDist() { const i = Math.min(wetEnd, path.length - 1); return i >= 0 && pathS.length ? Math.max(0, pathS[i]) : 0; },
+    zpl
+  };
+}
+if (typeof module !== 'undefined') module.exports = { createFanSim };
+
+
+// ---------------- 狀態 ----------------
+const $ = id => document.getElementById(id);
+const PAL = ['#9a5b34', '#d08a3e', '#e7c36a', '#a7b98a', '#c9bfae', '#c9bfae', '#c9bfae', '#b5a796', '#7aa35a'];
+const GRAIN = ['礫石', '粗砂', '細砂', '粉砂・黏土'];
+const ROCK_C = '#8d8999', WATER_C = '#3a78c6', DRY_C = '#b6c8da', PAPER = [0.973, 0.965, 0.941], INK = [0.15, 0.145, 0.17];
+let ZBOT = 0;
+let showPlants = false, lineOn = true;
+const SED_MAX = 3;
+let seed = 7, sim, playing = false, speed = 10, ex = 4, cutX = 0, cutOn = false, contour = false, intro = true, lonOpen = false;
+let phase = 'setup', frameNo = 0, dirty = true, faceDirty = true, secDirty = true, msStep = 3, stepsLast = 0;
+let A = null, B = null;
+const BUDGET = 18;
+const GRID = { NX: 240, NY: 320, DX: 12.5, XM: 20 };
+let fps = 60, lastT = 0;
+const hex = h => [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255];
+const palRGB = new Float32Array(16 * 3);
+PAL.forEach((h, i) => palRGB.set(hex(h), i * 3)); palRGB.set(hex(ROCK_C), 15 * 3);
+for (let i = 9; i < 15; i++) palRGB.set(hex(ROCK_C), i * 3);
+const matColor = m => m === 15 ? ROCK_C : PAL[m];
+const exU = () => ex * 10 / sim.DX; // 著色器以 10 m 為一格設計，這裡換算成 20 m 格
+
+const LEVEL = ['少', '中', '多'];
+function settings() {
+  return { supply: [0.6, 1, 1.6][+$('supply').value - 1], flow: [0.7, 1, 1.4][+$('flow').value - 1], runoff: +$('runoff').value / 100,
+    seed: Math.max(1, Math.min(999, Math.round(+$('seed').value) || 7)) };
+}
+function newSim() {
+  const st = settings(); seed = st.seed; $('seed').value = seed;
+  sim = createFanSim(seed, Object.assign({ supply: st.supply, flow: st.flow, runoff: st.runoff }, GRID || {}));
+  logLines.length = 0; seenEvents = 0; msStep = 3; stepsLast = 0; floodShown = -1e9;
+  zTop = 0; for (let c = 0; c < sim.N; c++) zTop = Math.max(zTop, sim.surf[c]); zTop += 6;
+  plantData = new Float32Array(sim.PN * 4); plantCount = 0; sprData = new Float32Array(64 * 4); sprCount = 0;
+  const F = 20 / sim.DX; if (!A) { A = [Math.max(2, sim.APX - 9 * F), sim.APY]; B = [Math.min(sim.NX - 4, sim.APX + 115 * F), sim.APY + 10 * F]; } else clampAB();
+  if (glOK) setupGrid();
+  dirty = faceDirty = secDirty = true; updateUI(true);
+}
+
+// ---------------- WebGL ----------------
+const cv = $('gl'), gl = cv.getContext('webgl2', { antialias: false, alpha: false });
+let zTop = 110;
+const NOISE_GLSL = `
+float hash12(vec2 p){vec3 p3=fract(vec3(p.xyx)*.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}
+float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);
+ return mix(mix(hash12(i),hash12(i+vec2(1,0)),u.x),mix(hash12(i+vec2(0,1)),hash12(i+vec2(1,1)),u.x),u.y);}`;
+const PENCIL_GLSL = NOISE_GLSL + `
+uniform vec3 uL; uniform vec3 uPaper; uniform vec3 uInk;
+float strokes(vec2 p,float ang,float freq,float w){
+ if(w<=0.0) return 0.0;
+ vec2 d=vec2(cos(ang),sin(ang));
+ float t=dot(p,d)*freq, a=dot(p,vec2(-d.y,d.x))*freq;
+ t+=(vnoise(vec2(a*0.35,t*0.25))-0.5)*0.5;
+ float k=floor(t), r=hash12(vec2(k,ang*13.0));
+ float ww=clamp(w*(0.75+0.5*r),0.0,1.0);
+ float f=abs(fract(t)-0.5)*2.0;
+ float aa=max(fwidth(t)*1.5,0.03);
+ float line=1.0-smoothstep(ww-aa,ww+aa,f);
+ float lift=smoothstep(0.15,0.38,vnoise(vec2(a*0.12+r*31.0,k*1.7)));
+ return line*mix(lift,1.0,clamp(aa*1.5,0.0,1.0));
+}
+float tri(vec3 P,vec3 w,float ang,float fr,float wd){
+ return strokes(P.xz,ang,fr,wd)*w.y+strokes(P.zy*vec2(1.0,1.3),ang+0.4,fr,wd)*w.x+strokes(P.xy*vec2(1.0,1.3),ang+0.4,fr,wd)*w.z;
+}
+vec3 pencil(vec3 P,vec3 n,vec3 base,float wet){
+ float light=clamp(dot(n,uL),0.0,1.0);
+ float tone=clamp(1.0-(0.3+0.7*light),0.0,1.0);
+ vec3 w=pow(abs(n),vec3(4.0)); w/=(w.x+w.y+w.z);
+ float g=0.6+0.4*vnoise(gl_FragCoord.xy*0.55);
+ float ang=wet>0.5?0.04:0.62, fr=wet>0.5?1.35:0.95;
+ float c=tri(P,w,ang,fr,0.5);
+ vec3 col=mix(uPaper,base,(0.36+0.52*c)*g);
+ float s1=tri(P,w,ang+1.25,fr*1.2,clamp(tone*1.35-0.1,0.0,0.95));
+ col=mix(col,base*0.52,s1*0.62*g);
+ float s2=tri(P,w,ang-0.75,fr*1.35,clamp(tone*1.5-0.55,0.0,0.95));
+ col=mix(col,uInk,s2*0.38*g);
+ return col;
+}`;
+const TERR_VS = `#version 300 es
+precision highp float; precision highp int;
+layout(location=0) in vec2 aG;
+uniform highp sampler2D uH; uniform mat4 uVP; uniform float uEx; uniform vec2 uN; uniform vec3 uPal[16];
+out vec3 vPos; out vec3 vN; out vec3 vCol; out float vW; out float vHm; out float vF;
+float hAt(ivec2 p){p=clamp(p,ivec2(0),ivec2(uN)-1);vec4 t=texelFetch(uH,p,0);return t.r+t.g;}
+void main(){
+ ivec2 p=ivec2(aG); vec4 t=texelFetch(uH,p,0); float h=t.r+t.g, k=uEx/10.0;
+ float hl=hAt(p+ivec2(-1,0)),hr=hAt(p+ivec2(1,0)),hd=hAt(p+ivec2(0,-1)),hu=hAt(p+ivec2(0,1));
+ vN=normalize(vec3(-(hr-hl)*k*0.5,1.0,-(hu-hd)*k*0.5));
+ vPos=vec3(aG.x-uN.x*0.5,(h-30.0)*k,aG.y-uN.y*0.5); vW=t.g; vHm=t.r; vF=t.a; vCol=uPal[int(t.b+0.5)];
+ gl_Position=uVP*vec4(vPos,1.0);
+}`;
+const TERR_FS = `#version 300 es
+precision highp float;
+in vec3 vPos; in vec3 vN; in vec3 vCol; in float vW; in float vHm; in float vF;
+uniform float uCutX,uCutOn,uContour; uniform vec2 uN; uniform vec3 uWater; uniform vec2 uA,uB; uniform float uLine,uCI; uniform vec3 uDry;
+layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
+${PENCIL_GLSL}
+void main(){
+ float gx=vPos.x+uN.x*0.5;
+ if(uCutOn>0.5&&gx<uCutX-0.001) discard;
+ vec3 n=normalize(vN); float wet=(vW>0.08&&n.y>0.8)?1.0:0.0;
+ vec3 col=pencil(vPos,n,wet>0.5?uWater:vCol,wet);
+ if(uContour>0.5&&wet<0.5){
+  float cf=vHm/uCI, dl=abs(fract(cf+0.5)-0.5)/max(fwidth(cf),1e-4);
+  float idx=abs(mod(floor(cf+0.5),5.0))<0.5?1.0:0.0;
+  float wl=mix(0.5,1.0,idx), ln=1.0-smoothstep(wl,wl+1.0,dl);
+  col=mix(col,vec3(0.45,0.29,0.2),ln*mix(0.28,0.55,idx));
+ }
+ float gy=vPos.z+uN.y*0.5;
+ if(vF>1.5&&vF<2.5&&wet<0.5) col=mix(col,uDry,0.6);
+ if(uLine>0.5){ vec2 P=vec2(gx,gy), ab=uB-uA; float t=clamp(dot(P-uA,ab)/max(dot(ab,ab),1e-4),0.0,1.0); float d=length(P-uA-ab*t); float aa=fwidth(d);
+  col=mix(col,vec3(0.76,0.25,0.18),0.9*(1.0-smoothstep(0.35,0.35+aa*1.5,d))); }
+ oC=vec4(col,1.0); oN=vec4(n*0.5+0.5,1.0);
+}`;
+const PLANT_VS = `#version 300 es
+precision highp float; precision highp int;
+layout(location=0) in vec4 aP;
+uniform highp sampler2D uH; uniform mat4 uVP; uniform float uEx,uScale,uCutX,uCutOn,uKind; uniform vec2 uN;
+out float vS;
+float H(ivec2 p){p=clamp(p,ivec2(0),ivec2(uN)-1);vec4 t=texelFetch(uH,p,0);return t.r+t.g;}
+void main(){
+ vec2 g=aP.xy; ivec2 i=ivec2(floor(g)); vec2 f=fract(g);
+ float h=mix(mix(H(i),H(i+ivec2(1,0)),f.x),mix(H(i+ivec2(0,1)),H(i+ivec2(1,1)),f.x),f.y);
+ float k=uEx/10.0, s=aP.z*clamp(0.35+aP.w/25.0,0.35,1.0);
+ vS=fract(sin(dot(g,vec2(12.9898,78.233)))*43758.5453);
+ if(uCutOn>0.5&&g.x<uCutX+0.3){gl_Position=vec4(2.0,2.0,2.0,1.0);gl_PointSize=0.0;return;}
+ gl_Position=uVP*vec4(g.x-uN.x*0.5,(h-30.0)*k+0.45*s,g.y-uN.y*0.5,1.0);
+ gl_PointSize=max(1.5,uScale*s/gl_Position.w);
+}`;
+const PLANT_FS = `#version 300 es
+precision highp float;
+in float vS; uniform vec3 uInk; uniform float uKind;
+layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
+${NOISE_GLSL}
+void main(){
+ vec2 q=gl_PointCoord*2.0-1.0; float r=length(q); if(r>1.0) discard;
+ vec3 lit=mix(vec3(0.45,0.68,0.30),vec3(0.33,0.60,0.33),vS), dark=mix(vec3(0.17,0.38,0.15),vec3(0.12,0.31,0.19),vS);
+ float l=clamp(0.55+0.6*dot(q,vec2(-0.6,-0.6)),0.0,1.0);
+ if(uKind>0.5){ lit=vec3(0.88,0.98,1.0); dark=vec3(0.10,0.55,0.70); }
+ vec3 col=mix(dark,lit,l)*(0.9+0.1*hash12(gl_FragCoord.xy));
+ col=mix(col,uInk,smoothstep(0.7,1.0,r)*0.6);
+ oC=vec4(col,1.0); oN=vec4(0.5,0.97,0.5,1.0);
+}`;
+const FACE_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aP; layout(location=1) in vec3 aN; layout(location=2) in vec2 aU;
+uniform mat4 uVP; out vec3 vPos; out vec3 vN; out vec2 vU;
+void main(){vPos=aP;vN=aN;vU=aU;gl_Position=uVP*vec4(aP,1.0);}`;
+const FACE_FS = `#version 300 es
+precision highp float;
+in vec3 vPos; in vec3 vN; in vec2 vU; uniform sampler2D uF; uniform vec2 uFS;
+layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
+${PENCIL_GLSL}
+void main(){
+ vec4 m=texture(uF,vU); vec3 n=normalize(vN);
+ vec3 col=pencil(vPos,n,m.rgb,m.a<0.15?1.0:0.0);
+ if(m.a>0.4&&m.a<0.6){ // 沖積層：礫石點
+  vec2 q=vec2(dot(vPos.xz,vec2(abs(n.z),abs(n.x))),vPos.y)*vec2(1.6,2.2);
+  vec2 cell=floor(q); vec2 f=fract(q)-0.5-(vec2(hash12(cell),hash12(cell+7.0))-0.5)*0.5;
+  float dot1=step(0.55,hash12(cell+3.1))*(1.0-smoothstep(0.1,0.17,length(f)));
+  col=mix(col,m.rgb*0.45,dot1*0.8);
+ }
+ vec4 a=texture(uF,vU+vec2(0.0,uFS.y)), b=texture(uF,vU-vec2(0.0,uFS.y));
+ float e=step(0.12,length(a.rgb-b.rgb)+abs(a.a-b.a));
+ col=mix(col,uInk,e*0.55);
+ oC=vec4(col,1.0); oN=vec4(n*0.5+0.5,1.0);
+}`;
+const POST_VS = `#version 300 es
+out vec2 vUV; void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);vUV=p;gl_Position=vec4(p*2.0-1.0,0.0,1.0);}`;
+const POST_FS = `#version 300 es
+precision highp float;
+in vec2 vUV; uniform sampler2D uC,uNr,uD; uniform vec2 uPx; uniform float uNear,uFar; uniform vec3 uPaper,uInk;
+out vec4 o;
+${NOISE_GLSL}
+float lin(float d){float z=d*2.0-1.0;return 2.0*uNear*uFar/(uFar+uNear-z*(uFar-uNear));}
+void main(){
+ vec2 fc=gl_FragCoord.xy;
+ vec2 wob=(vec2(vnoise(fc*0.045),vnoise(fc*0.045+17.0))-0.5)*2.2*uPx;
+ vec2 uv=vUV+wob;
+ float dc=lin(texture(uD,uv).r); vec3 nc=texture(uNr,uv).xyz;
+ float ed=0.0,en=0.0;
+ for(int i=0;i<4;i++){
+  vec2 o2=(i==0?vec2(1,0):i==1?vec2(-1,0):i==2?vec2(0,1):vec2(0,-1))*uPx*1.2;
+  ed+=abs(lin(texture(uD,uv+o2).r)-dc); en+=length(texture(uNr,uv+o2).xyz-nc);
+ }
+ float edge=max(smoothstep(0.015,0.05,ed/dc),smoothstep(0.32,0.75,en));
+ vec4 c=texture(uC,vUV); bool bg=texture(uNr,vUV).a<0.5;
+ vec3 col=bg?uPaper:c.rgb;
+ float g=vnoise(fc*0.7);
+ col=mix(col,uInk,edge*(0.5+0.4*g));
+ col*=0.955+0.045*vnoise(fc*0.33+vec2(5.0));
+ o=vec4(col,1.0);
+}`;
+
+let P = {}, fbo = null, fboW = 0, fboH = 0, hTex, fTex, terrVAO, terrCount, faceVAO, faceBuf, faceCount = 0, postVAO;
+let AW = 0; const AH = 512;
+let faceData, hData;
+function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+function prog(vs, fs) {
+  const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < n; i++) { const a = gl.getActiveUniform(p, i); u[a.name.replace('[0]', '')] = gl.getUniformLocation(p, a.name); }
+  return { p, u };
+}
+let gridNX = 0, gridNY = 0, vbG, ibG, faceVerts, plantVAO, plantBuf, plantData = new Float32Array(4), plantCount = 0;
+const PROJ_T = 1 / Math.tan(0.75 / 2);
+function initGL() {
+  P.terr = prog(TERR_VS, TERR_FS); P.face = prog(FACE_VS, FACE_FS); P.post = prog(POST_VS, POST_FS); P.plant = prog(PLANT_VS, PLANT_FS);
+  plantVAO = gl.createVertexArray(); gl.bindVertexArray(plantVAO);
+  plantBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, plantBuf);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0);
+  terrVAO = gl.createVertexArray(); gl.bindVertexArray(terrVAO);
+  vbG = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbG);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  ibG = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibG);
+  faceVAO = gl.createVertexArray(); gl.bindVertexArray(faceVAO);
+  faceBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, faceBuf);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 32, 0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 32, 12);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 32, 24);
+  postVAO = gl.createVertexArray(); gl.bindVertexArray(null);
+  const tex = filt => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); return t; };
+  hTex = tex(gl.NEAREST); fTex = tex(gl.LINEAR);
+}
+function setupGrid() { // 依網格大小配置緩衝區與紋理
+  const NX = sim.NX, NY = sim.NY;
+  if (NX === gridNX && NY === gridNY) return;
+  gridNX = NX; gridNY = NY;
+  const g = new Float32Array(NX * NY * 2); for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) { g[(y * NX + x) * 2] = x; g[(y * NX + x) * 2 + 1] = y; }
+  const idx = new Uint32Array((NX - 1) * (NY - 1) * 6); let k = 0;
+  for (let y = 0; y < NY - 1; y++) for (let x = 0; x < NX - 1; x++) { const a = y * NX + x; idx[k++] = a; idx[k++] = a + NX; idx[k++] = a + 1; idx[k++] = a + 1; idx[k++] = a + NX; idx[k++] = a + NX + 1; }
+  terrCount = k;
+  gl.bindVertexArray(terrVAO);
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbG); gl.bufferData(gl.ARRAY_BUFFER, g, gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibG); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+  gl.bindTexture(gl.TEXTURE_2D, hTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, NX, NY, 0, gl.RGBA, gl.FLOAT, null);
+  hData = new Float32Array(NX * NY * 4);
+  AW = 2 * NX + 2 * NY;
+  gl.bindTexture(gl.TEXTURE_2D, fTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, AW, AH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  faceData = new Uint8Array(AW * AH * 4); faceVerts = new Float32Array(AW * 6 * 8);
+}
+function makeFBO(w, h) {
+  if (fbo) { gl.deleteFramebuffer(fbo.f); fbo.t.forEach(t => gl.deleteTexture(t)); }
+  const mk = (ifmt, fmt, type, filt) => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, ifmt, w, h, 0, fmt, type, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); return t; };
+  const c = mk(gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR), n = mk(gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.NEAREST), d = mk(gl.DEPTH_COMPONENT24, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, gl.NEAREST);
+  const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, c, 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, n, 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, d, 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  fbo = { f, t: [c, n, d] }; fboW = w; fboH = h;
+}
+
+// ---------------- 相機 ----------------
+const cam = { yaw: 1.0, pitch: 0.62, dist: 250, tyaw: 1.0, tpitch: 0.62, tdist: 250, px: 0, pz: 0, tpx: 0, tpz: 0 };
+let TGT = [8, 40, 0], lastD = 250; // 視點中心（格、公尺、格）
+const VIEWS = { bird: [1.0, 0.62, 250], face: [1.5708, 0.3, 190], top: [1.5708, 1.5, 250] };
+function persp(f, a, n, fa) { const t = 1 / Math.tan(f / 2); return [t / a, 0, 0, 0, 0, t, 0, 0, 0, 0, (fa + n) / (n - fa), -1, 0, 0, 2 * fa * n / (n - fa), 0]; }
+function lookAt(e, c, u) {
+  let z = [e[0] - c[0], e[1] - c[1], e[2] - c[2]]; let l = Math.hypot(...z); z = z.map(v => v / l);
+  let x = [u[1] * z[2] - u[2] * z[1], u[2] * z[0] - u[0] * z[2], u[0] * z[1] - u[1] * z[0]]; l = Math.hypot(...x); x = x.map(v => v / l);
+  const y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
+  return [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -(x[0] * e[0] + x[1] * e[1] + x[2] * e[2]), -(y[0] * e[0] + y[1] * e[1] + y[2] * e[2]), -(z[0] * e[0] + z[1] * e[1] + z[2] * e[2]), 1];
+}
+function mul(a, b) { const o = new Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; }
+let VP = null;
+function camMatrix(w, h) {
+  const t = [TGT[0] + cam.px, (TGT[1] - 30) * exU() / 10, TGT[2] + cam.pz];
+  const D = cam.dist * Math.max(1, 1.05 / (w / h)) * Math.hypot(sim.NX, sim.NY) / 231; lastD = D;
+  const e = [t[0] + D * Math.cos(cam.pitch) * Math.sin(cam.yaw), t[1] + D * Math.sin(cam.pitch), t[2] + D * Math.cos(cam.pitch) * Math.cos(cam.yaw)];
+  const up = cam.pitch > 1.45 ? [Math.sin(cam.yaw) * -1, 0, -Math.cos(cam.yaw)] : [0, 1, 0];
+  VP = mul(persp(0.75, w / h, 2, 2000), lookAt(e, t, up));
+}
+function project(x, y, z) {
+  const v = VP; const cx = v[0] * x + v[4] * y + v[8] * z + v[12], cy = v[1] * x + v[5] * y + v[9] * z + v[13], cw = v[3] * x + v[7] * y + v[11] * z + v[15];
+  return cw <= 0 ? null : [(cx / cw * 0.5 + 0.5), (1 - (cy / cw * 0.5 + 0.5))];
+}
+{ // 拖曳與縮放
+  const pts = new Map(); let pinch0 = 0, dist0 = 0, panMode = false;
+  const pan = (dx, dy) => { // 平移：沿地面移動視點中心，畫面跟著游標走
+    const s = 2 * lastD * Math.tan(0.375) / Math.max(1, cv.clientHeight), g = 1 / Math.max(0.35, Math.sin(cam.pitch));
+    const rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw), fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw);
+    cam.tpx = Math.max(-sim.NX / 2, Math.min(sim.NX / 2, cam.tpx + (-rx * dx + fx * dy * g) * s));
+    cam.tpz = Math.max(-sim.NY / 2, Math.min(sim.NY / 2, cam.tpz + (-rz * dx + fz * dy * g) * s));
+  };
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); panMode = e.button === 2 || e.button === 1 || e.shiftKey || e.ctrlKey; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); dist0 = cam.tdist; } });
+  cv.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return;
+    const p = pts.get(e.pointerId), dx = e.clientX - p[0], dy = e.clientY - p[1]; pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 1) { if (panMode) pan(dx, dy); else { cam.tyaw -= dx * 0.006; cam.tpitch = Math.max(0.05, Math.min(1.5, cam.tpitch + dy * 0.005)); } }
+    else if (pts.size === 2) { // 雙指：縮放＋平移
+      const [a, b] = [...pts.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch0 > 0) cam.tdist = Math.max(90, Math.min(520, dist0 * pinch0 / d));
+      pan(dx / 2, dy / 2);
+    }
+  });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = 0; };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', e => { e.preventDefault(); cam.tdist = Math.max(90, Math.min(520, cam.tdist * Math.exp(e.deltaY * 0.0012))); }, { passive: false });
+  document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { const v = VIEWS[b.dataset.view]; cam.tyaw = v[0]; cam.tpitch = v[1]; cam.tdist = v[2]; cam.tpx = cam.tpz = 0; }));
+}
+
+// ---------------- 剖面線端點：螢幕座標 → 地表格點 ----------------
+function inv4(a) {
+  const o = new Array(16);
+  o[0] = a[5] * a[10] * a[15] - a[5] * a[11] * a[14] - a[9] * a[6] * a[15] + a[9] * a[7] * a[14] + a[13] * a[6] * a[11] - a[13] * a[7] * a[10];
+  o[4] = -a[4] * a[10] * a[15] + a[4] * a[11] * a[14] + a[8] * a[6] * a[15] - a[8] * a[7] * a[14] - a[12] * a[6] * a[11] + a[12] * a[7] * a[10];
+  o[8] = a[4] * a[9] * a[15] - a[4] * a[11] * a[13] - a[8] * a[5] * a[15] + a[8] * a[7] * a[13] + a[12] * a[5] * a[11] - a[12] * a[7] * a[9];
+  o[12] = -a[4] * a[9] * a[14] + a[4] * a[10] * a[13] + a[8] * a[5] * a[14] - a[8] * a[6] * a[13] - a[12] * a[5] * a[10] + a[12] * a[6] * a[9];
+  o[1] = -a[1] * a[10] * a[15] + a[1] * a[11] * a[14] + a[9] * a[2] * a[15] - a[9] * a[3] * a[14] - a[13] * a[2] * a[11] + a[13] * a[3] * a[10];
+  o[5] = a[0] * a[10] * a[15] - a[0] * a[11] * a[14] - a[8] * a[2] * a[15] + a[8] * a[3] * a[14] + a[12] * a[2] * a[11] - a[12] * a[3] * a[10];
+  o[9] = -a[0] * a[9] * a[15] + a[0] * a[11] * a[13] + a[8] * a[1] * a[15] - a[8] * a[3] * a[13] - a[12] * a[1] * a[11] + a[12] * a[3] * a[9];
+  o[13] = a[0] * a[9] * a[14] - a[0] * a[10] * a[13] - a[8] * a[1] * a[14] + a[8] * a[2] * a[13] + a[12] * a[1] * a[10] - a[12] * a[2] * a[9];
+  o[2] = a[1] * a[6] * a[15] - a[1] * a[7] * a[14] - a[5] * a[2] * a[15] + a[5] * a[3] * a[14] + a[13] * a[2] * a[7] - a[13] * a[3] * a[6];
+  o[6] = -a[0] * a[6] * a[15] + a[0] * a[7] * a[14] + a[4] * a[2] * a[15] - a[4] * a[3] * a[14] - a[12] * a[2] * a[7] + a[12] * a[3] * a[6];
+  o[10] = a[0] * a[5] * a[15] - a[0] * a[7] * a[13] - a[4] * a[1] * a[15] + a[4] * a[3] * a[13] + a[12] * a[1] * a[7] - a[12] * a[3] * a[5];
+  o[14] = -a[0] * a[5] * a[14] + a[0] * a[6] * a[13] + a[4] * a[1] * a[14] - a[4] * a[2] * a[13] - a[12] * a[1] * a[6] + a[12] * a[2] * a[5];
+  o[3] = -a[1] * a[6] * a[11] + a[1] * a[7] * a[10] + a[5] * a[2] * a[11] - a[5] * a[3] * a[10] - a[9] * a[2] * a[7] + a[9] * a[3] * a[6];
+  o[7] = a[0] * a[6] * a[11] - a[0] * a[7] * a[10] - a[4] * a[2] * a[11] + a[4] * a[3] * a[10] + a[8] * a[2] * a[7] - a[8] * a[3] * a[6];
+  o[11] = -a[0] * a[5] * a[11] + a[0] * a[7] * a[9] + a[4] * a[1] * a[11] - a[4] * a[3] * a[9] - a[8] * a[1] * a[7] + a[8] * a[3] * a[5];
+  o[15] = a[0] * a[5] * a[10] - a[0] * a[6] * a[9] - a[4] * a[1] * a[10] + a[4] * a[2] * a[9] + a[8] * a[1] * a[6] - a[8] * a[2] * a[5];
+  const det = 1 / (a[0] * o[0] + a[1] * o[4] + a[2] * o[8] + a[3] * o[12]);
+  return o.map(v => v * det);
+}
+function hAt(gx, gy) {
+  const { NX, NY, surf, water } = sim;
+  const x = Math.max(0, Math.min(NX - 1.001, gx)), y = Math.max(0, Math.min(NY - 1.001, gy)), i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
+  const h = (a, b) => surf[b * NX + a] + water[b * NX + a];
+  return (h(i, j) * (1 - fx) + h(i + 1, j) * fx) * (1 - fy) + (h(i, j + 1) * (1 - fx) + h(i + 1, j + 1) * fx) * fy;
+}
+function pickGround(clientX, clientY) {
+  if (!VP) return null;
+  const r = cv.getBoundingClientRect(), nx = (clientX - r.left) / r.width * 2 - 1, ny = 1 - (clientY - r.top) / r.height * 2;
+  const I = inv4(VP), un = z => { const v = [I[0] * nx + I[4] * ny + I[8] * z + I[12], I[1] * nx + I[5] * ny + I[9] * z + I[13], I[2] * nx + I[6] * ny + I[10] * z + I[14], I[3] * nx + I[7] * ny + I[11] * z + I[15]]; return [v[0] / v[3], v[1] / v[3], v[2] / v[3]]; };
+  const p0 = un(-1), p1 = un(1), k = exU() / 10;
+  const at = t => [p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t, p0[2] + (p1[2] - p0[2]) * t];
+  const below = p => { const gx = p[0] + sim.NX / 2, gy = p[2] + sim.NY / 2; if (gx < 0 || gy < 0 || gx > sim.NX - 1 || gy > sim.NY - 1) return null; return p[1] <= (hAt(gx, gy) - 30) * k; };
+  let prev = 0; const STEPS = 1500;
+  for (let s = 1; s <= STEPS; s++) {
+    const t = (s / STEPS) ** 2 * 0.6, b = below(at(t));
+    if (b) { let lo = prev, hi = t; for (let q = 0; q < 14; q++) { const m = (lo + hi) / 2; if (below(at(m))) hi = m; else lo = m; } const p = at(hi); return [Math.max(1, Math.min(sim.NX - 2, p[0] + sim.NX / 2)), Math.max(1, Math.min(sim.NY - 2, p[2] + sim.NY / 2))]; }
+    prev = t;
+  }
+  return null;
+}
+['hA', 'hB'].forEach(id => {
+  const el = $(id); let drag = false;
+  el.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); el.setPointerCapture(e.pointerId); drag = true; });
+  el.addEventListener('pointermove', e => { if (!drag) return; const g = pickGround(e.clientX, e.clientY); if (!g) return; if (id === 'hA') A = g; else B = g; secDirty = true; });
+  const up = () => { drag = false; }; el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  el.addEventListener('contextmenu', e => e.preventDefault());
+  el.addEventListener('keydown', e => { // 鍵盤也可移動端點
+    const P2 = id === 'hA' ? A : B, d = e.shiftKey ? 5 : 1, m = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[e.key];
+    if (!m) return; e.preventDefault(); P2[0] = Math.max(1, Math.min(sim.NX - 2, P2[0] + m[0])); P2[1] = Math.max(1, Math.min(sim.NY - 2, P2[1] + m[1])); secDirty = true;
+  });
+});
+function clampAB() { const f = P2 => { P2[0] = Math.max(1, Math.min(sim.NX - 2, P2[0])); P2[1] = Math.max(1, Math.min(sim.NY - 2, P2[1])); }; f(A); f(B); }
+function placeHandles() {
+  const k = exU() / 10, W = cv.clientWidth, H = cv.clientHeight;
+  const handle = (el, P2) => {
+    if (!lineOn) { el.style.display = 'none'; return; }
+    const q = project(P2[0] - sim.NX / 2, (hAt(P2[0], P2[1]) - 30) * k, P2[1] - sim.NY / 2);
+    if (!q) { el.style.display = 'none'; return; }
+    el.style.display = ''; el.style.transform = `translate(${q[0] * W}px,${q[1] * H}px)`;
+  };
+  handle($('hA'), A); handle($('hB'), B);
+}
+
+
+// ---------------- 資料上傳 ----------------
+function uploadHeight() {
+  const { N, surf, water } = sim, fl = sim.flag;
+  for (let c = 0; c < N; c++) { const o = c * 4; hData[o] = surf[c]; hData[o + 1] = water[c]; hData[o + 2] = sim.topMat(c); hData[o + 3] = fl ? fl[c] : 0; }
+  gl.bindTexture(gl.TEXTURE_2D, hTex);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, sim.NX, sim.NY, gl.RGBA, gl.FLOAT, hData);
+}
+const pal255 = []; for (let i = 0; i < 16; i++) pal255.push([palRGB[i * 3] * 255, palRGB[i * 3 + 1] * 255, palRGB[i * 3 + 2] * 255]);
+const water255 = hex(WATER_C).map(v => v * 255);
+function fillColumn(col, c) {
+  const { K, rock, lt, lm, ln, surf, water } = sim, dz = (zTop - ZBOT) / AH;
+  const tops = [rock[c]], mats = [15];
+  let z = rock[c];
+  for (let k = 0; k < ln[c]; k++) { z += lt[c * K + k]; tops.push(z); mats.push(lm[c * K + k]); }
+  const wTop = surf[c] + water[c];
+  let j = 0;
+  for (let t = 0; t < AH; t++) {
+    const zz = ZBOT + (t + 0.5) * dz; let rgb, cls;
+    while (j < tops.length - 1 && zz > tops[j]) j++;
+    if (zz <= tops[tops.length - 1] || water[c] <= 0.05) {
+      const m = zz <= tops[j] ? mats[j] : mats[mats.length - 1];
+      rgb = pal255[m]; cls = m === 15 ? 255 : (m <= SED_MAX ? 128 : 190);
+    } else { rgb = water255; cls = 0; }
+    if (zz > wTop && water[c] > 0.05) { rgb = water255; cls = 0; }
+    const o = (t * AW + col) * 4; faceData[o] = rgb[0]; faceData[o + 1] = rgb[1]; faceData[o + 2] = rgb[2]; faceData[o + 3] = cls;
+  }
+}
+function buildFaces() {
+  const { NX, NY, surf, water } = sim, x0 = 0, k = exU() / 10;
+  for (let iy = 0; iy < NY; iy++) { fillColumn(iy, iy * NX + x0); fillColumn(NY + NX + iy, iy * NX + NX - 1); }
+  for (let ix = 0; ix < NX; ix++) { fillColumn(NY + ix, ix); fillColumn(2 * NY + NX + ix, (NY - 1) * NX + ix); }
+  gl.bindTexture(gl.TEXTURE_2D, fTex); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, AW, AH, gl.RGBA, gl.UNSIGNED_BYTE, faceData);
+  let n = 0; const yb = (ZBOT - 30) * k;
+  const top = c => surf[c] + (water[c] > 0.05 ? water[c] : 0);
+  const quad = (xa, za, ha, ua, xb, zb, hb, ub, nx, nz) => {
+    const va = (ha - ZBOT) / (zTop - ZBOT), vb = (hb - ZBOT) / (zTop - ZBOT), ya = (ha - 30) * k, yb2 = (hb - 30) * k;
+    const V = [[xa, yb, za, ua, 0], [xa, ya, za, ua, va], [xb, yb, zb, ub, 0], [xa, ya, za, ua, va], [xb, yb2, zb, ub, vb], [xb, yb, zb, ub, 0]];
+    for (const v of V) { faceVerts.set([v[0], v[1], v[2], nx, 0, nz, v[3], v[4]], n); n += 8; }
+  };
+  const hx = NX / 2, hy = NY / 2, U = i => (i + 0.5) / AW;
+  for (let iy = 0; iy < NY - 1; iy++) {
+    quad(x0 - hx, iy - hy, top(iy * NX + x0), U(iy), x0 - hx, iy + 1 - hy, top((iy + 1) * NX + x0), U(iy + 1), -1, 0);
+    quad(NX - 1 - hx, iy + 1 - hy, top((iy + 1) * NX + NX - 1), U(NY + NX + iy + 1), NX - 1 - hx, iy - hy, top(iy * NX + NX - 1), U(NY + NX + iy), 1, 0);
+  }
+  for (let ix = x0; ix < NX - 1; ix++) {
+    quad(ix + 1 - hx, -hy, top(ix + 1), U(NY + ix + 1), ix - hx, -hy, top(ix), U(NY + ix), 0, -1);
+    const r = (NY - 1) * NX;
+    quad(ix - hx, NY - 1 - hy, top(r + ix), U(2 * NY + NX + ix), ix + 1 - hx, NY - 1 - hy, top(r + ix + 1), U(2 * NY + NX + ix + 1), 0, 1);
+  }
+  faceCount = n / 8;
+  gl.bindBuffer(gl.ARRAY_BUFFER, faceBuf); gl.bufferData(gl.ARRAY_BUFFER, faceVerts.subarray(0, n), gl.DYNAMIC_DRAW);
+}
+
+
+// ---------------- 繪製 3D ----------------
+const L = (() => { const v = [0.45, 0.85, 0.4]; const l = Math.hypot(...v); return v.map(a => a / l); })();
+let sprData = new Float32Array(4), sprCount = 0;
+function fanAxis() { // 扇體主軸方向：堆積物重心相對於扇頂
+  const { NX, N, surf, base0, APX, APY } = sim; let sx = 0, sy = 0, w = 0;
+  for (let c = 0; c < N; c += 3) { const t = surf[c] - base0[c]; if (t < 1.5) continue; const x = c % NX, y = (c / NX) | 0; if (x < APX) continue; sx += (x - APX) * t; sy += (y - APY) * t; w += t; }
+  if (w <= 0) return [1, 0]; const l = Math.hypot(sx, sy) || 1; return [sx / l, sy / l];
+}
+let axis = [1, 0];
+function renderGL() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+  const w = Math.max(2, Math.round(cv.clientWidth * dpr)), h = Math.max(2, Math.round(cv.clientHeight * dpr));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  if (fboW !== w || fboH !== h) makeFBO(w, h);
+  const s = 0.18; cam.yaw += (cam.tyaw - cam.yaw) * s; cam.pitch += (cam.tpitch - cam.pitch) * s; cam.dist += (cam.tdist - cam.dist) * s; cam.px += (cam.tpx - cam.px) * 0.3; cam.pz += (cam.tpz - cam.pz) * 0.3;
+  camMatrix(w, h);
+  if (dirty) {
+    uploadHeight(); if (faceDirty || !playing || frameNo % 3 === 0) { buildFaces(); faceDirty = false; }
+    plantCount = sim.plants(plantData); gl.bindBuffer(gl.ARRAY_BUFFER, plantBuf); gl.bufferData(gl.ARRAY_BUFFER, plantData.subarray(0, plantCount * 4), gl.DYNAMIC_DRAW);
+    sprCount = sim.springPts(sprData); gl.bindBuffer(gl.ARRAY_BUFFER, sprBuf); gl.bufferData(gl.ARRAY_BUFFER, sprData.subarray(0, sprCount * 4), gl.DYNAMIC_DRAW);
+    if (frameNo % 20 === 0 || !playing) axis = fanAxis();
+    dirty = false;
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.f); gl.viewport(0, 0, w, h);
+  gl.clearBufferfv(gl.COLOR, 0, [...PAPER, 1]); gl.clearBufferfv(gl.COLOR, 1, [0.5, 0.5, 0.5, 0]); gl.clearBufferfv(gl.DEPTH, 0, [1]);
+  gl.enable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE);
+  const common = (u) => { gl.uniformMatrix4fv(u.uVP, false, VP); gl.uniform3fv(u.uL, L); gl.uniform3fv(u.uPaper, PAPER); gl.uniform3fv(u.uInk, INK); };
+  let p = P.terr; gl.useProgram(p.p); common(p.u);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, hTex); gl.uniform1i(p.u.uH, 0);
+  gl.uniform1f(p.u.uEx, exU()); gl.uniform2f(p.u.uN, sim.NX, sim.NY); gl.uniform3fv(p.u.uPal, palRGB);
+  gl.uniform1f(p.u.uCutX, 0); gl.uniform1f(p.u.uCutOn, 0); gl.uniform1f(p.u.uContour, contour ? 1 : 0); gl.uniform3fv(p.u.uWater, hex(WATER_C));
+  gl.uniform2f(p.u.uA, A[0], A[1]); gl.uniform2f(p.u.uB, B[0], B[1]); gl.uniform1f(p.u.uLine, lineOn ? 1 : 0); gl.uniform1f(p.u.uCI, 5); gl.uniform3fv(p.u.uDry, hex(DRY_C));
+  gl.bindVertexArray(terrVAO); gl.drawElements(gl.TRIANGLES, terrCount, gl.UNSIGNED_INT, 0);
+  const pts = (buf, n, kind) => {
+    p = P.plant; gl.useProgram(p.p); gl.uniformMatrix4fv(p.u.uVP, false, VP); gl.uniform3fv(p.u.uInk, INK);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, hTex); gl.uniform1i(p.u.uH, 0);
+    gl.uniform1f(p.u.uEx, exU()); gl.uniform2f(p.u.uN, sim.NX, sim.NY); gl.uniform1f(p.u.uScale, h * PROJ_T * 0.5);
+    gl.uniform1f(p.u.uCutX, 0); gl.uniform1f(p.u.uCutOn, 0); gl.uniform1f(p.u.uKind, kind);
+    gl.bindVertexArray(buf); gl.drawArrays(gl.POINTS, 0, n);
+  };
+  if (plantCount && showPlants) pts(plantVAO, plantCount, 0);
+  if (sprCount) pts(sprVAO, sprCount, 1);
+  p = P.face; gl.useProgram(p.p); common(p.u);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fTex); gl.uniform1i(p.u.uF, 0); gl.uniform2f(p.u.uFS, 1 / AW, 1 / AH);
+  gl.bindVertexArray(faceVAO); gl.drawArrays(gl.TRIANGLES, 0, faceCount);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, w, h); gl.disable(gl.DEPTH_TEST);
+  p = P.post; gl.useProgram(p.p);
+  [0, 1, 2].forEach(i => { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, fbo.t[i]); });
+  gl.uniform1i(p.u.uC, 0); gl.uniform1i(p.u.uNr, 1); gl.uniform1i(p.u.uD, 2);
+  gl.uniform2f(p.u.uPx, 1 / w, 1 / h); gl.uniform1f(p.u.uNear, 2); gl.uniform1f(p.u.uFar, 2000);
+  gl.uniform3fv(p.u.uPaper, PAPER); gl.uniform3fv(p.u.uInk, INK);
+  gl.bindVertexArray(postVAO); gl.drawArrays(gl.TRIANGLES, 0, 3);
+  placeTags();
+}
+function placeTags() {
+  const k = exU() / 10, W = cv.clientWidth, H = cv.clientHeight;
+  const place = (el, gx, gy, lift, show) => {
+    if (!show) { el.style.display = 'none'; return; }
+    const q = project(gx - sim.NX / 2, (hAt(gx, gy) + (lift || 0) - 30) * k, gy - sim.NY / 2);
+    if (!q || q[0] < 0 || q[0] > 1 || q[1] < 0 || q[1] > 1) { el.style.display = 'none'; return; }
+    el.style.display = ''; el.style.transform = `translate(${q[0] * W}px,${q[1] * H}px) translate(-50%,-120%)`;
+  };
+  const { APX, APY } = sim, R = sim.fanR / sim.DX, big = sim.fanR > 360, F = 20 / sim.DX;
+  const at = f => [Math.max(1, Math.min(sim.NX - 2, APX + axis[0] * R * f)), Math.max(1, Math.min(sim.NY - 2, APY + axis[1] * R * f))];
+  place($('tagMtn'), Math.max(2, APX * 0.35), APY + 30 * F, 10, true);
+  place($('tagApex'), APX + 3 * F, APY + 3 * F, 12, true);
+  const m = at(0.5), t = at(0.92); place($('tagMid'), m[0], m[1], 5, big); place($('tagToe'), t[0], t[1], 5, big);
+  const sp = sim.springs; if (sp.length) { let best = sp[0], bd = -1e9; sp.forEach(c => { const d = (c % sim.NX - APX) * axis[0] + (((c / sim.NX) | 0) - APY) * axis[1]; if (d > bd) { bd = d; best = c; } }); place($('tagSpr'), best % sim.NX, (best / sim.NX) | 0, 4, true); } else place($('tagSpr'), 0, 0, 0, false);
+  placeHandles();
+  // 泉水流向箭頭
+  const box = $('arrows'), arr = sim.springArrows;
+  while (box.children.length < arr.length) { const d = document.createElement('div'); d.className = 'sarr'; d.innerHTML = '<svg height="16"><line x1="0" y1="8" y2="8" stroke="#f8f6f0" stroke-width="6" stroke-linecap="round"/><line x1="0" y1="8" y2="8" stroke="#1f6fd0" stroke-width="2.6" stroke-linecap="round"/><polygon fill="#1f6fd0" stroke="#f8f6f0" stroke-width="1.5"/></svg>'; box.appendChild(d); }
+  [...box.children].forEach((d, i) => {
+    const a = arr[i]; if (!a) { d.style.display = 'none'; return; }
+    const S = 2.2 * F, wx = a[0] - sim.NX / 2, wz = a[1] - sim.NY / 2, wy = (hAt(a[0], a[1]) - 30) * k + 0.45 * S; // 湧泉圓球中心
+    const p0 = project(wx, wy, wz), p1 = project(a[2] - sim.NX / 2, (hAt(a[2], a[3]) + 1 - 30) * k, a[3] - sim.NY / 2);
+    if (!p0 || !p1) { d.style.display = 'none'; return; }
+    const cw = VP[3] * wx + VP[7] * wy + VP[11] * wz + VP[15], rad = Math.max(1, 0.5 * H * PROJ_T * 0.5 * S / cw), gap = rad + 7; // 箭頭與圓球保持約 7 px 間隔
+    const cx0 = p0[0] * W, cy0 = p0[1] * H, ddx = p1[0] * W - cx0, ddy = p1[1] * H - cy0, dl = Math.hypot(ddx, ddy) || 1;
+    const x0 = cx0 + ddx / dl * gap, y0 = cy0 + ddy / dl * gap, dx = ddx, dy = ddy, len = Math.max(18, Math.min(70, dl - gap));
+    d.style.display = ''; d.style.width = len + 'px'; d.style.transform = `translate(${x0}px,${y0 - 8}px) rotate(${Math.atan2(dy, dx)}rad)`;
+    const sv = d.firstChild; sv.setAttribute('width', len); sv.children[0].setAttribute('x2', len - 6); sv.children[1].setAttribute('x2', len - 6); sv.children[2].setAttribute('points', `${len},8 ${len - 10},2 ${len - 10},14`);
+  });
+}
+
+// ---------------- 2D 剖面 ----------------
+const patCache = {};
+function pattern(ctx, color, kind) {
+  const key = color + kind; if (patCache[key]) return patCache[key];
+  const c = document.createElement('canvas'); c.width = c.height = 36; const g = c.getContext('2d');
+  const [r, gg, b] = hex(color).map(v => Math.round(v * 255 * 0.55));
+  g.strokeStyle = g.fillStyle = `rgba(${r},${gg},${b},0.75)`; g.lineCap = 'round';
+  let s = 11;
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  if (kind === 'rock') { g.lineWidth = 1; for (let i = -36; i < 72; i += 7) { g.beginPath(); g.moveTo(i, 36); g.lineTo(i + 36, 0); g.stroke(); } }
+  else if (kind === 'water') { g.lineWidth = 1.1; for (let y = 4; y < 36; y += 6) { g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= 36; x += 6) g.lineTo(x, y + Math.sin(x * 0.35 + y) * 0.8); g.stroke(); } }
+  else { g.lineWidth = 0.8; for (let i = -36; i < 72; i += 9) { g.beginPath(); g.moveTo(i, 36); g.lineTo(i + 36, 0); g.stroke(); } for (let i = 0; i < 14; i++) { g.beginPath(); g.arc(rnd() * 36, rnd() * 36, 0.9 + rnd() * 1.2, 0, 6.3); g.fill(); } }
+  return (patCache[key] = ctx.createPattern(c, 'repeat'));
+}
+function sizeCanvas(c) { const dpr = Math.min(window.devicePixelRatio || 1, 2); const w = Math.round(c.clientWidth * dpr), h = Math.round(c.clientHeight * dpr); if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return [ctx, c.clientWidth, c.clientHeight]; }
+const FONT = '"LXGW WenKai TC","Kaiti TC","BiauKai",serif';
+function label(ctx, text, x, y, size, color) {
+  ctx.font = `${size}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(248,246,240,0.95)'; ctx.strokeText(text, x, y); ctx.fillStyle = color || '#26252b'; ctx.fillText(text, x, y);
+}
+
+function grainPattern(ctx, m) {
+  const key = 'g' + m; if (patCache[key]) return patCache[key];
+  const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d');
+  const col = hex(matColor(m)).map(v => Math.round(v * 255 * 0.5));
+  g.fillStyle = g.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},0.8)`; g.lineWidth = 1;
+  let s = 7 + m; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  if (m === 0) { for (let i = 0; i < 6; i++) { g.beginPath(); g.ellipse(rnd() * 32, rnd() * 32, 2.6 + rnd() * 2.4, 2 + rnd() * 1.8, rnd() * 3, 0, 6.3); g.stroke(); } }
+  else if (m === 1) { for (let i = 0; i < 16; i++) { g.beginPath(); g.arc(rnd() * 32, rnd() * 32, 1.2 + rnd() * 0.6, 0, 6.3); g.fill(); } }
+  else if (m === 2) { for (let i = 0; i < 34; i++) { g.fillRect(rnd() * 32, rnd() * 32, 1.1, 1.1); } }
+  else if (m === 3) { for (let y = 4; y < 32; y += 6) for (let x = (y % 12) ? 0 : 5; x < 32; x += 10) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + 6, y); g.stroke(); } }
+  else if (m === 8) { g.lineWidth = 0.8; for (let i = -32; i < 64; i += 8) { g.beginPath(); g.moveTo(i, 32); g.lineTo(i + 32, 0); g.stroke(); } }
+  else { for (let y = 5; y < 32; y += 8) { g.beginPath(); g.moveTo(0, y); g.lineTo(32, y); g.stroke(); } for (let i = 0; i < 6; i++) g.fillRect(rnd() * 32, rnd() * 32, 1.2, 1.2); }
+  return (patCache[key] = ctx.createPattern(c, 'repeat'));
+}
+function zoneOf(gx, gy) {
+  if (gx < sim.APX - 1) return '山區';
+  const R = sim.fanR / sim.DX, r = Math.hypot(gx - sim.APX, gy - sim.APY);
+  if (sim.fanR < 200 || r > R * 1.05) return '平原';
+  return r < R / 3 ? '扇頂' : r < R * 2 / 3 ? '扇央' : '扇端';
+}
+function drawSection() {
+  const [ctx, W, H] = sizeCanvas($('sec'));
+  const { NX, K, DX, rock, lt, lm, ln, surf, water, flag } = sim;
+  ctx.fillStyle = '#f8f6f0'; ctx.fillRect(0, 0, W, H);
+  const len = Math.hypot(B[0] - A[0], B[1] - A[1]);
+  if (len < 2) { label(ctx, '把 A、B 兩點拉開，就會畫出剖面', W / 2, H / 2, 16); return; }
+  const M = Math.max(40, Math.min(500, Math.round(len * 2)));
+  const cols = [];
+  for (let i = 0; i <= M; i++) {
+    const t = i / M, gx = A[0] + (B[0] - A[0]) * t, gy = A[1] + (B[1] - A[1]) * t, c = Math.round(gy) * NX + Math.round(gx);
+    cols.push({ t, gx, gy, c, z: surf[c], r: rock[c], w: water[c], f: flag[c], wt: sim.zpl(gx, gy) + 1.0 });
+  }
+  let zlo = 1e9, zhi = -1e9; cols.forEach(o => { zlo = Math.min(zlo, o.r, o.wt); zhi = Math.max(zhi, o.z + o.w); });
+  zlo = Math.max(ZBOT, zlo - 3); zhi += 5;
+  const padL = 44, padR = 14, padT = 30, padB = 26, pw = W - padL - padR, ph = H - padT - padB;
+  const X = t => padL + t * pw, Y = z => padT + (1 - (z - zlo) / (zhi - zlo)) * ph;
+  const exg = (ph / (zhi - zlo)) / (pw / (len * DX));
+  const dw = pw / M;
+  ctx.save(); ctx.beginPath(); ctx.moveTo(X(0), Y(zlo)); cols.forEach(o => ctx.lineTo(X(o.t), Y(o.z))); ctx.lineTo(X(1), Y(zlo)); ctx.closePath(); ctx.clip();
+  const paths = {};
+  const add = (m, x0, x1, z0, z1) => { (paths[m] || (paths[m] = new Path2D())).rect(x0, Y(z1), x1 - x0, Y(z0) - Y(z1)); };
+  cols.forEach((o, i) => {
+    const c = o.c, x0 = X(o.t) - dw / 2, x1 = X(o.t) + dw / 2 + 0.6, n = ln[c];
+    let z = Math.min(o.r, i ? cols[i - 1].r : 1e9, i < M ? cols[i + 1].r : 1e9) - 0.3;
+    for (let k = 0; k < n; k++) { const zt = (k === 0 ? rock[c] : z) + lt[c * K + k]; add(lm[c * K + k], x0, x1, z, k === n - 1 ? zhi : zt); z = zt; }
+  });
+  for (const m in paths) { ctx.globalAlpha = 0.6; ctx.fillStyle = matColor(+m); ctx.fill(paths[m]); ctx.globalAlpha = 1; ctx.fillStyle = grainPattern(ctx, +m); ctx.fill(paths[m]); }
+  const rp = new Path2D(); rp.moveTo(X(0), Y(zlo)); cols.forEach(o => rp.lineTo(X(o.t), Y(o.r))); rp.lineTo(X(1), Y(zlo)); rp.closePath();
+  ctx.globalAlpha = 0.6; ctx.fillStyle = ROCK_C; ctx.fill(rp); ctx.globalAlpha = 1; ctx.fillStyle = pattern(ctx, ROCK_C, 'rock'); ctx.fill(rp);
+  // 地下水面（只畫在地表以下）
+  ctx.setLineDash([6, 4]); ctx.strokeStyle = 'rgba(31,94,170,0.9)'; ctx.lineWidth = 1.6; ctx.beginPath();
+  let on = false; cols.forEach(o => { if (o.wt < o.z - 0.05 && o.c % NX >= sim.APX - 2) { on ? ctx.lineTo(X(o.t), Y(o.wt)) : ctx.moveTo(X(o.t), Y(o.wt)); on = true; } else on = false; }); ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
+  // 水
+  cols.forEach(o => { if (o.w > 0.05) { ctx.fillStyle = 'rgba(58,120,198,0.85)'; ctx.fillRect(X(o.t) - dw / 2, Y(o.z + o.w) - 1, dw + 0.6, Math.max(2, Y(o.z) - Y(o.z + o.w) + 1)); } });
+  ctx.lineJoin = 'round'; ctx.strokeStyle = '#4b4953'; ctx.lineWidth = 1; ctx.beginPath(); cols.forEach((o, i) => i ? ctx.lineTo(X(o.t), Y(o.r)) : ctx.moveTo(X(o.t), Y(o.r))); ctx.stroke();
+  ctx.strokeStyle = '#26252b'; ctx.lineWidth = 1.8; ctx.beginPath(); cols.forEach((o, i) => i ? ctx.lineTo(X(o.t), Y(o.z)) : ctx.moveTo(X(o.t), Y(o.z))); ctx.stroke();
+  // 刻度
+  ctx.fillStyle = '#615f68'; ctx.font = '12px system-ui,sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'rgba(38,37,43,0.12)'; ctx.lineWidth = 1;
+  const span = zhi - zlo, step = span > 120 ? 50 : span > 50 ? 20 : span > 20 ? 10 : 5;
+  for (let z = Math.ceil(zlo / step) * step; z <= zhi; z += step) { ctx.beginPath(); ctx.moveTo(padL, Y(z)); ctx.lineTo(W - padR, Y(z)); ctx.stroke(); ctx.fillText(z + ' m', padL - 4, Y(z)); }
+  ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left'; ctx.fillText(`A（全長 ${Math.round(len * DX).toLocaleString()} m）`, padL, H - 7);
+  ctx.textAlign = 'right'; ctx.fillText(`B｜垂直誇大約 ×${exg < 10 ? exg.toFixed(1) : exg.toFixed(0)}`, W - padR, H - 7);
+  // 分區帶：山區／扇頂／扇央／扇端／平原
+  const ZC = { 山區: '#b9c9a6', 扇頂: '#c9a07e', 扇央: '#e2c08f', 扇端: '#efdcae', 平原: '#d9d4c8' };
+  let i0 = 0;
+  for (let i = 1; i <= cols.length; i++) {
+    const zA = zoneOf(cols[i0].gx, cols[i0].gy), zB = i < cols.length ? zoneOf(cols[i].gx, cols[i].gy) : null;
+    if (zB === zA) continue;
+    const x0 = X(cols[i0].t), x1 = X(cols[i - 1].t);
+    ctx.fillStyle = ZC[zA]; ctx.fillRect(x0, 6, Math.max(1, x1 - x0), 16);
+    ctx.font = `13px ${FONT}`; if (x1 - x0 > 30) { ctx.fillStyle = '#26252b'; ctx.textAlign = 'center'; ctx.fillText(zA, (x0 + x1) / 2, 19); }
+    i0 = i;
+  }
+  // 湧泉與地下水面標註
+  const placed = [];
+  cols.forEach(o => {
+    if (o.f !== 3) return; const x = X(o.t);
+    if (placed.some(p => Math.abs(p - x) < 60)) return; placed.push(x);
+    const y = Y(o.z + o.w);
+    ctx.strokeStyle = '#1f6f8c'; ctx.lineWidth = 1.5; for (let r = 4; r <= 10; r += 3) { ctx.beginPath(); ctx.arc(x, y, r, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); }
+    label(ctx, '湧泉', x, y - 14, 14, '#1f6f8c');
+  });
+  const wl = cols.find(o => o.wt < o.z - 3 && o.c % NX >= sim.APX);
+  if (wl) label(ctx, '地下水面', Math.min(W - 60, X(wl.t) + 40), Y(wl.wt) + 16, 13, '#1f5eaa');
+  $('secInfo').textContent = `全長 ${Math.round(len * DX).toLocaleString()} m・拖曳 3D 圖上的 A、B 點`;
+}
+function drawFlow() {
+  const [ctx, W, H] = sizeCanvas($('lon'));
+  ctx.fillStyle = '#f8f6f0'; ctx.fillRect(0, 0, W, H);
+  const P2 = sim.path, Q = sim.pathQ, S = sim.pathS; if (!P2.length || !S.length) return;
+  let i0 = S.findIndex(v => v >= 0); if (i0 < 0) i0 = 0;
+  const smax = Math.max(500, Math.min(S[S.length - 1], (sim.fanR || 500) * 1.35));
+  const padL = 40, padR = 66, padT = 14, padB = 26, pw = W - padL - padR, ph = H - padT - padB;
+  const X = s => padL + Math.min(1, s / smax) * pw, Yq = q => padT + (1 - q) * ph, Yg = g => padT + (g + 0.5) / 4.5 * ph;
+  ctx.strokeStyle = 'rgba(38,37,43,0.12)'; ctx.lineWidth = 1; ctx.fillStyle = '#615f68'; ctx.font = '12px system-ui,sans-serif';
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  [0, 0.5, 1].forEach(q => { ctx.beginPath(); ctx.moveTo(padL, Yq(q)); ctx.lineTo(W - padR, Yq(q)); ctx.stroke(); ctx.fillText(Math.round(q * 100) + '%', padL - 4, Yq(q)); });
+  ctx.textAlign = 'left'; GRAIN.forEach((g, k) => { ctx.fillStyle = PAL[k]; ctx.fillRect(W - padR + 6, Yg(k) - 4, 8, 8); ctx.fillStyle = '#615f68'; ctx.fillText(g, W - padR + 18, Yg(k)); });
+  ctx.textBaseline = 'alphabetic'; ctx.fillText('扇頂', padL, H - 7); ctx.textAlign = 'right'; ctx.fillText(`${Math.round(smax).toLocaleString()} m`, W - padR, H - 7);
+  // 水量
+  ctx.beginPath(); ctx.moveTo(X(0), Yq(0));
+  for (let i = i0; i < P2.length && S[i] <= smax; i++) ctx.lineTo(X(S[i]), Yq(Q[i] || 0));
+  ctx.lineTo(X(Math.min(smax, S[Math.min(P2.length - 1, P2.length - 1)])), Yq(0)); ctx.closePath();
+  ctx.fillStyle = 'rgba(58,120,198,0.35)'; ctx.fill(); ctx.strokeStyle = WATER_C; ctx.lineWidth = 2; ctx.stroke();
+  // 河床顆粒
+  ctx.strokeStyle = '#9a5b34'; ctx.lineWidth = 2.2; ctx.beginPath(); let first = true;
+  for (let i = i0; i < P2.length && S[i] <= smax; i++) { const m = sim.topMat(P2[i]); if (m > 3) continue; const x = X(S[i]), y = Yg(m); first ? ctx.moveTo(x, y) : ctx.lineTo(x, y); first = false; }
+  ctx.stroke();
+  const roff = sim.ROFF, we = roff > 0 ? sim.infEnd : sim.wetEnd;
+  if (roff > 0 && sim.lastQ <= 1.5) { ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(31,94,170,0.6)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(padL, Yq(roff)); ctx.lineTo(W - padR, Yq(roff)); ctx.stroke(); ctx.setLineDash([]); label(ctx, `地面徑流 ${Math.round(roff * 100)}%`, W - padR - 52, Yq(roff) - 6, 13, '#1f5eaa'); }
+  if (we < P2.length && S[we] > 0 && S[we] < smax) { const x = X(S[we]); ctx.strokeStyle = 'rgba(31,94,170,0.7)'; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, H - padB); ctx.stroke(); ctx.setLineDash([]); label(ctx, roff > 0 ? '能滲的水已滲光' : '河水全部滲入地下', Math.min(W - padR - 60, x + 58), padT + 26, 13, '#1f5eaa'); }
+  if (sim.springs.length) {
+    const rs = sim.springs.map(c => Math.hypot(c % sim.NX - sim.APX, ((c / sim.NX) | 0) - sim.APY) * sim.DX).sort((a, b) => a - b);
+    const a = X(rs[0]), b = X(rs[rs.length - 1]); ctx.fillStyle = 'rgba(43,179,201,0.18)'; ctx.fillRect(a, padT, Math.max(3, b - a), ph);
+    label(ctx, '湧泉帶', (a + b) / 2, H - padB - 8, 13, '#1f6f8c');
+  }
+}
+
+// ---------------- 介面 ----------------
+const logLines = []; let seenEvents = 0, floodShown = -1e9;
+const fmtY = y => Math.round(y).toLocaleString('zh-TW');
+const fmtM = m => Math.round(m).toLocaleString('zh-TW') + ' m';
+const SETUP_IDS = ['supply', 'flow', 'runoff', 'seed'];
+function setPhase(p) {
+  phase = p; playing = p === 'running';
+  const setup = p === 'setup';
+  SETUP_IDS.forEach(id => $(id).disabled = !setup);
+  $('setupBox').classList.toggle('locked', !setup);
+  $('start').disabled = p === 'running';
+  $('start').classList.toggle('cont', !setup); $('start').textContent = setup ? '開始模擬' : '繼續模擬';
+  $('pause').disabled = p !== 'running';
+  $('restart').disabled = setup;
+  updateUI(true);
+}
+function updateUI(force) {
+  const y = sim.year, R = sim.fanR, wd = sim.wetDist(), nS = sim.springs.length;
+  $('clockYear').textContent = `第 ${fmtY(y)} 年`;
+  $('clockSub').textContent = R > 0 ? `扇面半徑約 ${fmtM(R)}` : '尚未形成沖積扇';
+  $('fGrid').textContent = `${sim.NX} × ${sim.NY}（每格 ${sim.DX} m，共 ${sim.N.toLocaleString()} 格）`;
+  $('fCpu').textContent = phase === 'setup' ? '尚未開始' : `每步約 ${msStep.toFixed(1)} ms・每畫格 ${stepsLast} 步（5 年／步）`;
+  $('fFps').textContent = `約 ${Math.round(fps)} 格／秒` + (phase === 'running' ? `・模擬推進約 ${Math.round(fps * stepsLast * 5).toLocaleString()} 年／秒` : '');
+  $('fR').textContent = R > 0 ? fmtM(R) : '—';
+  $('fH').textContent = sim.apexH > 0 ? `${sim.apexH.toFixed(1)} m` : '—';
+  $('fAv').textContent = `${sim.avulsions} 次`;
+  const floodNow = y - sim.lastFlood <= 10 && sim.lastQ > 1.5;
+  const roff = sim.ROFF, idist = sim.infDist();
+  $('fWet').textContent = y === 0 ? '—' : floodNow ? '洪水中，河水流到很遠' : roff <= 0 ? (wd > 0 ? `流到距扇頂約 ${fmtM(wd)} 處全部滲入地下` : '—') : `約 ${Math.round(sim.infFrac * 100)}% 在距扇頂 ${fmtM(idist)} 內滲入地下，其餘 ${Math.round(roff * 100)}% 在地表流過扇面`;
+  $('fSpr').textContent = nS ? `${nS} 處（扇端）` : '尚未出現';
+  let t, p, cls = '';
+  if (phase === 'setup') { t = '設定河流'; p = '先調整輸沙量與河流水量，再按「開始模擬」。模擬時隨時可以拖曳 3D 圖上的紅色 A、B 點，畫出任何方向的剖面。'; }
+  else if (y - floodShown < 60) { cls = 'incise'; t = '洪水來了'; p = '洪水水量大，河水一路流到扇端，帶來更多砂石；河道也比平常更容易改道。'; }
+  else if (R < 500) { t = '沖積扇開始堆積'; p = '河流出谷口後坡度變緩、水流散開，搬不動的砂石開始在谷口堆積，最粗的礫石最先停下來。'; }
+  else if (nS === 0) { t = '沖積扇持續長大'; p = '河道一邊堆積一邊把自己墊高，墊得比旁邊高時就改道，流向較低的地方，所以扇面會向四周均勻長大。'; }
+  else if (roff <= 0) { t = '扇頂缺水、扇端湧泉'; p = `扇頂多礫石、透水性高，平常的河水流到距扇頂約 ${fmtM(wd)} 處就全部滲入地下；地下水往下游流，到顆粒變細、扇體變薄的扇端出露成 ${nS} 處湧泉。`; }
+  else { t = '扇頂水量減少、扇端湧泉'; p = `扇頂多礫石、透水性高，河水流經扇頂時有 ${Math.round(sim.infFrac * 100)}% 滲入地下，水量明顯減少；剩下的地面徑流繼續在扇面上流動、改道。滲入的地下水往下游流，到顆粒變細、扇體變薄的扇端出露成 ${nS} 處湧泉。`; }
+  if (!intro) { $('stageT').textContent = t; $('stageP').textContent = p; $('stage').className = 'stage ' + cls; }
+  $('flood').disabled = phase === 'setup';
+  $('floodNote').textContent = phase === 'setup' ? '開始模擬後才能使用。平常也會隨機發生洪水。' : '洪水時河水流得更遠、帶來更多砂石，河道也更容易改道。';
+  for (; seenEvents < sim.events.length; seenEvents++) {
+    const e = sim.events[seenEvents];
+    if (e.type === 'avulsion') logLines.unshift(`第 ${fmtY(e.year)} 年：河道在距扇頂約 ${fmtM(e.d)} 處改道${e.flood ? '（洪水時）' : ''}`);
+  }
+  $('log').innerHTML = logLines.slice(0, 8).map(x => `<li>${x}</li>`).join('');
+  if (force || frameNo % 30 === 0) {
+    const L2 = GRAIN.map((g, k) => `<li><i style="background:${PAL[k]}"></i>${g}</li>`);
+    L2.push(`<li><i style="background:${PAL[6]}"></i>原有平原堆積</li>`, `<li><i style="background:${PAL[8]}"></i>山坡土壤</li>`, `<li><i style="background:${ROCK_C}"></i>基岩</li>`,
+      `<li><i style="background:${WATER_C}"></i>河水</li>`, `<li><i style="background:${DRY_C}"></i>乾河床</li>`, `<li><i class="spr"></i>湧泉</li>`, `<li><i class="arr"></i>泉水流向</li>`);
+    $('legend').innerHTML = L2.join('');
+  }
+}
+function doFlood() {
+  if (phase === 'setup') return;
+  sim.triggerFlood(+$('floodAmt').value); floodShown = sim.year; logLines.unshift(`第 ${fmtY(sim.year)} 年：發生${$('floodAmt').selectedOptions[0].text}`);
+  if (phase === 'paused') { sim.run(1); dirty = faceDirty = secDirty = true; }
+  updateUI(true);
+}
+function regenerate() {
+  if (!intro) { $('stageT').textContent = '產生地形中…'; $('stageP').textContent = '正在依設定建立山區與平原。'; }
+  playing = false;
+  setTimeout(() => { newSim(); setPhase('setup'); }, 30);
+}
+function leaveIntro() { if (!intro) return; intro = false; $('go').hidden = true; $('stageT').hidden = false; updateUI(true); }
+$('go').addEventListener('click', () => {
+  leaveIntro(); const b = $('setupBox'); b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash');
+  if (window.innerWidth <= 960) b.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+$('start').addEventListener('click', () => { leaveIntro(); setPhase('running'); });
+$('dtab').addEventListener('click', () => {
+  lonOpen = !lonOpen; $('lonFig').hidden = !lonOpen; $('dtab').setAttribute('aria-expanded', lonOpen);
+  setArrow(); secDirty = true;
+});
+const narrowMQ = matchMedia('(max-width:960px)');
+function setArrow() { $('dtabAr').textContent = narrowMQ.matches ? (lonOpen ? '▴' : '▾') : (lonOpen ? '›' : '‹'); }
+narrowMQ.addEventListener('change', setArrow); setArrow();
+if (window.innerWidth < 600) $('lgbox').open = false;
+$('pause').addEventListener('click', () => setPhase('paused'));
+$('restart').addEventListener('click', regenerate);
+$('flood').addEventListener('click', doFlood);
+let regenT = 0;
+const onSetup = (id, fmt) => {
+  $(id).addEventListener('input', e => { leaveIntro(); if (fmt) $(id + 'O').textContent = fmt(+e.target.value); });
+  $(id).addEventListener('change', () => { clearTimeout(regenT); regenT = setTimeout(regenerate, 120); });
+};
+onSetup('supply', v => LEVEL[v - 1]); onSetup('flow', v => LEVEL[v - 1]); onSetup('runoff', v => v + '%'); onSetup('seed', null);
+$('speed').addEventListener('input', e => { speed = +e.target.value; $('speedO').textContent = speed + '×'; });
+$('ex').addEventListener('input', e => { ex = +e.target.value; $('exO').textContent = '×' + ex; dirty = faceDirty = true; });
+$('contour').addEventListener('change', e => { contour = e.target.checked; });
+$('lineOn').addEventListener('change', e => { lineOn = e.target.checked; });
+$('plantOn').addEventListener('change', e => { showPlants = e.target.checked; });
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' || /INPUT|SELECT|BUTTON/.test(document.activeElement.tagName) || document.activeElement.classList.contains('hdl')) return;
+  e.preventDefault(); if (phase === 'running') $('pause').click(); else $('start').click();
+});
+new ResizeObserver(() => { secDirty = true; }).observe($('sec'));
+
+// ---------------- 主迴圈 ----------------
+let glOK = !!gl, sprVAO, sprBuf;
+if (glOK) { try { initGL(); sprVAO = gl.createVertexArray(); gl.bindVertexArray(sprVAO); sprBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, sprBuf); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0); gl.bindVertexArray(null); } catch (err) { console.error(err); glOK = false; } }
+if (!glOK) { $('nogl').style.display = 'grid'; }
+newSim();
+function frame(now) {
+  frameNo++;
+  if (lastT && now > lastT) fps = fps * 0.9 + 0.1 * Math.min(120, 1000 / (now - lastT)); lastT = now;
+  if (phase === 'running') {
+    const t0 = performance.now();
+    const n = Math.max(1, Math.min(speed, Math.floor(BUDGET / msStep)));
+    sim.run(n);
+    msStep = msStep * 0.85 + 0.15 * (performance.now() - t0) / n; stepsLast = n; dirty = secDirty = true;
+  }
+  if (glOK) renderGL();
+  if (secDirty && (phase !== 'running' || frameNo % 2 === 0)) { drawSection(); if (lonOpen) drawFlow(); secDirty = false; }
+  if (frameNo % 6 === 0) updateUI(false);
+  requestAnimationFrame(frame);
+}
+setPhase('setup');
+requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>
